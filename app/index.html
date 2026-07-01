@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="es" data-theme="system">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/TIPrincipal.png" />
+    <link rel="apple-touch-icon" href="/TIPrincipal.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tecnología Importada</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      // Aplica el tema guardado antes del primer render (evita el flash)
+      (function () {
+        try {
+          var t = localStorage.getItem('ti-theme') || 'system';
+          document.documentElement.setAttribute('data-theme', t);
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

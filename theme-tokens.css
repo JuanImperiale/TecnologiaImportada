@@ -1,0 +1,130 @@
+/* ============================================================
+   TECNOLOGÍA IMPORTADA — Design Tokens
+   Estilo: Minimal premium · Light + Dark dinámico
+   Uso: importar en el root de la app. El tema se controla con
+        el atributo data-theme en <html> ("light" | "dark").
+   ============================================================ */
+
+:root {
+  /* ---- Tipografía ---- */
+  --ti-font-sans: "Helvetica Neue", Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --ti-font-display: "Helvetica Neue", Inter, system-ui, sans-serif; /* titulares bold */
+
+  --ti-fw-regular: 400;
+  --ti-fw-medium: 500;
+  --ti-fw-bold: 700;
+  --ti-fw-black: 800;   /* logos / hero */
+
+  --ti-fs-xs: 12px;
+  --ti-fs-sm: 13px;
+  --ti-fs-base: 15px;
+  --ti-fs-md: 16px;
+  --ti-fs-lg: 18px;
+  --ti-fs-xl: 21px;
+  --ti-fs-2xl: 30px;
+  --ti-fs-hero: clamp(28px, 4vw, 46px);
+
+  --ti-lh-tight: 1.05;
+  --ti-lh-normal: 1.5;
+  --ti-tracking-tight: -0.02em;
+  --ti-tracking-wide: 0.08em;
+
+  /* ---- Radios ---- */
+  --ti-radius-sm: 8px;
+  --ti-radius-md: 14px;
+  --ti-radius-lg: 18px;     /* cards */
+  --ti-radius-pill: 999px;  /* botones, chips */
+
+  /* ---- Espaciado (escala 4px) ---- */
+  --ti-space-1: 4px;
+  --ti-space-2: 8px;
+  --ti-space-3: 12px;
+  --ti-space-4: 16px;
+  --ti-space-5: 20px;
+  --ti-space-6: 24px;
+  --ti-space-8: 32px;
+  --ti-space-10: 40px;
+  --ti-container: 1180px;
+
+  /* ---- Transiciones ---- */
+  --ti-fast: 0.18s ease;
+  --ti-medium: 0.28s ease;
+}
+
+/* ============ MODO CLARO (default) ============ */
+:root,
+[data-theme="light"] {
+  --ti-bg: #eceae3;            /* fondo de página (beige logo) */
+  --ti-surface: #ffffff;       /* cards, nav */
+  --ti-surface-2: #f4f2ec;     /* inputs, thumbs, chips suaves */
+  --ti-text: #171717;          /* texto principal */
+  --ti-text-soft: #6b6a64;     /* texto secundario */
+  --ti-text-faint: #9a988f;    /* hints, placeholders */
+
+  --ti-accent: #171717;        /* CTA, activo (near-black de marca) */
+  --ti-on-accent: #ffffff;     /* texto sobre accent */
+  --ti-link: #171717;
+
+  --ti-line: rgba(0, 0, 0, 0.10);   /* bordes default */
+  --ti-line-strong: rgba(0, 0, 0, 0.18);
+  --ti-chip: #e2e0d7;
+
+  /* Semánticos (sutiles, no saturados) */
+  --ti-success: #1f9d57;  --ti-success-bg: #e6f4ec;
+  --ti-danger:  #c0443c;  --ti-danger-bg:  #f7e8e7;
+  --ti-warning: #b9821a;  --ti-warning-bg: #f6efdf;
+  --ti-info:    #2f6bd6;  --ti-info-bg:    #e7eefb;
+  --ti-sale:    #c0443c;  /* badge de descuento */
+
+  --ti-shadow-sm: 0 1px 2px rgba(0,0,0,.04);
+  --ti-shadow:    0 1px 2px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.05);
+  --ti-shadow-lg: 0 1px 2px rgba(0,0,0,.05), 0 20px 50px rgba(0,0,0,.10);
+
+  color-scheme: light;
+}
+
+/* ============ MODO OSCURO ============ */
+[data-theme="dark"] {
+  --ti-bg: #0e0e0e;
+  --ti-surface: #1a1a1a;
+  --ti-surface-2: #161616;
+  --ti-text: #f5f4f0;
+  --ti-text-soft: #9a9890;
+  --ti-text-faint: #6e6c66;
+
+  --ti-accent: #f5f4f0;        /* en dark el CTA se invierte (claro sobre oscuro) */
+  --ti-on-accent: #111111;
+  --ti-link: #f5f4f0;
+
+  --ti-line: rgba(255, 255, 255, 0.10);
+  --ti-line-strong: rgba(255, 255, 255, 0.18);
+  --ti-chip: #242424;
+
+  --ti-success: #4cc585;  --ti-success-bg: #16251d;
+  --ti-danger:  #e87b73;  --ti-danger-bg:  #2a1716;
+  --ti-warning: #e0ad4f;  --ti-warning-bg: #271f12;
+  --ti-info:    #6ea3f5;  --ti-info-bg:    #14203a;
+  --ti-sale:    #e87b73;
+
+  --ti-shadow-sm: 0 1px 2px rgba(0,0,0,.4);
+  --ti-shadow:    0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.5);
+  --ti-shadow-lg: 0 1px 2px rgba(0,0,0,.5), 0 24px 60px rgba(0,0,0,.6);
+
+  color-scheme: dark;
+}
+
+/* ============ Seguir preferencia del sistema cuando data-theme="system" ============ */
+@media (prefers-color-scheme: dark) {
+  [data-theme="system"] {
+    --ti-bg: #0e0e0e; --ti-surface: #1a1a1a; --ti-surface-2: #161616;
+    --ti-text: #f5f4f0; --ti-text-soft: #9a9890; --ti-text-faint: #6e6c66;
+    --ti-accent: #f5f4f0; --ti-on-accent: #111111; --ti-link: #f5f4f0;
+    --ti-line: rgba(255,255,255,.10); --ti-line-strong: rgba(255,255,255,.18); --ti-chip: #242424;
+    --ti-success:#4cc585; --ti-success-bg:#16251d; --ti-danger:#e87b73; --ti-danger-bg:#2a1716;
+    --ti-warning:#e0ad4f; --ti-warning-bg:#271f12; --ti-info:#6ea3f5; --ti-info-bg:#14203a; --ti-sale:#e87b73;
+    --ti-shadow-sm:0 1px 2px rgba(0,0,0,.4);
+    --ti-shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.5);
+    --ti-shadow-lg:0 1px 2px rgba(0,0,0,.5),0 24px 60px rgba(0,0,0,.6);
+    color-scheme: dark;
+  }
+}

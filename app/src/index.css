@@ -1,0 +1,31 @@
+@import './styles/theme-tokens.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--ti-bg);
+    color: var(--ti-text);
+    font-family: var(--ti-font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    transition:
+      background var(--ti-fast),
+      color var(--ti-fast);
+  }
+
+  /* Foco visible accesible en toda la app */
+  :focus-visible {
+    outline: 2px solid var(--ti-accent);
+    outline-offset: 2px;
+  }
+}

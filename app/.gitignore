@@ -1,0 +1,22 @@
+node_modules
+dist
+dist-ssr
+*.tsbuildinfo
+*.local
+.env.local
+.env.*.local
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Credenciales / claves privadas (NUNCA commitear)
+scripts/serviceAccountKey.json
+*serviceAccount*.json
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
