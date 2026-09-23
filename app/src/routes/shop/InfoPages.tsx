@@ -16,7 +16,7 @@ import {
 import { Card, CardBody } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Textarea";
-import { LeafletMap } from "@/components/ui/LeafletMap";
+import { buildGoogleMapsDirectionsHref, extractGoogleMapsEmbedSrc } from "@/lib/utils";
 import { useBusinessSettings } from "@/hooks/useBusinessSettings";
 
 function PageHeader({
@@ -126,16 +126,8 @@ export function NosotrosPage() {
   const contactoTexto =
     settings.contactoTexto ??
     "Podes escribirnos para consultar disponibilidad, compatibilidad, medios de pago o coordinar un pedido.";
-  const googleMapsUrl = settings.mapaEmbedUrl?.trim() || "";
-  const hasCoords = settings.mapLat != null && settings.mapLon != null;
-  const mapsAppHref = hasCoords
-    ? `https://www.google.com/maps/dir/?api=1&destination=${settings.mapLat},${settings.mapLon}`
-    : googleMapsUrl;
-  const googleEmbedSrc = hasCoords
-    ? `https://www.google.com/maps?q=${settings.mapLat},${settings.mapLon}&z=16&output=embed`
-    : googleMapsUrl
-      ? `https://www.google.com/maps?q=${encodeURIComponent(googleMapsUrl)}&z=16&output=embed`
-      : "";
+  const googleEmbedSrc = extractGoogleMapsEmbedSrc(settings.mapaEmbedUrl);
+  const mapsAppHref = buildGoogleMapsDirectionsHref(settings.mapaEmbedUrl, direccion);
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
@@ -301,17 +293,7 @@ export function NosotrosPage() {
       {/* Panel Ubicación */}
       {tab === "ubicacion" && (
         <div className="flex flex-col gap-5">
-          {hasCoords ? (
-            <Card className="overflow-hidden">
-              <LeafletMap
-                lat={settings.mapLat}
-                lon={settings.mapLon}
-                zoom={17}
-                interactive={false}
-                className="h-[420px] w-full sm:h-[520px]"
-              />
-            </Card>
-          ) : googleEmbedSrc ? (
+          {googleEmbedSrc ? (
             <Card className="overflow-hidden">
               <iframe
                 title="Ubicación en Google Maps"
@@ -362,12 +344,7 @@ export function ContactoPage() {
     settings.whatsapp?.trim() ||
     "Sin teléfono configurado";
   const direccion = direccionConfigurada || "Sin dirección configurada";
-  const hasCoords = settings.mapLat != null && settings.mapLon != null;
-  const mapsAppHref = hasCoords
-    ? `https://www.google.com/maps/dir/?api=1&destination=${settings.mapLat},${settings.mapLon}`
-    : direccionConfigurada
-      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(direccionConfigurada)}`
-      : "";
+  const mapsAppHref = buildGoogleMapsDirectionsHref(settings.mapaEmbedUrl, direccionConfigurada);
   const contactoTexto =
     settings.contactoTexto ??
     "Podés escribirnos para consultar disponibilidad, compatibilidad, medios de pago o coordinar un pedido armado desde el carrito.";

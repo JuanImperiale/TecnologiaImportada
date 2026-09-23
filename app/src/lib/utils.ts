@@ -79,3 +79,78 @@ export function slugify(text: string): string {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
 }
+
+/**
+ * Extrae la URL `src` de un `<iframe>` de Google Maps ("Insertar un mapa").
+ * Si el valor no contiene un iframe, lo devuelve tal cual (por si ya es un link directo).
+ */
+export function extractGoogleMapsEmbedSrc(input: string | undefined | null): string {
+  const trimmed = input?.trim() ?? '';
+  if (!trimmed) return '';
+  const match = trimmed.match(/<iframe[^>]*\ssrc="([^"]+)"/i);
+  return match ? match[1] : trimmed;
+}
+
+/** Busca lat/lon en un iframe/link de Google Maps (formato embed `pb=` o link compartido). */
+function extractGoogleMapsLatLon(input: string | undefined | null): { lat: number; lon: number } | undefined {
+  const trimmed = input?.trim() ?? '';
+  if (!trimmed) return undefined;
+
+  const patterns: [RegExp, 'latLon' | 'lonLat'][] = [
+    [/!2d(-?\d+(?:\.\d+)?)!3d(-?\d+(?:\.\d+)?)/, 'lonLat'], // embed pb=...
+    [/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/, 'latLon'], // link compartido
+    [/[?&]q=(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/, 'latLon'], // ?q=lat,lon
+  ];
+
+  for (const [pattern, order] of patterns) {
+    const match = trimmed.match(pattern);
+    if (!match) continue;
+    const a = Number(match[1]);
+    const b = Number(match[2]);
+    if (!Number.isFinite(a) || !Number.isFinite(b)) continue;
+    return order === 'lonLat' ? { lat: b, lon: a } : { lat: a, lon: b };
+  }
+
+  return undefined;
+}
+
+/**
+ * Busca el nombre de lugar (dirección exacta buscada en Google Maps) dentro del parámetro
+ * `pb=` de un embed. Es más preciso que lat/lon: evita que Google geocodifique el pin al revés
+ * y devuelva una dirección vecina distinta a la buscada originalmente.
+ */
+function extractGoogleMapsPlaceName(input: string | undefined | null): string | undefined {
+  const trimmed = input?.trim() ?? '';
+  if (!trimmed) return undefined;
+
+  const match = trimmed.match(/!1s0x[0-9a-f]+(?:%3A|:)0x[0-9a-f]+!2s([^!]+)/i);
+  if (!match) return undefined;
+
+  try {
+    return decodeURIComponent(match[1].replace(/\+/g, ' '));
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Arma un link de Google Maps que traza la ruta desde la ubicación del usuario hasta el local
+ * (sin `origin`, Google Maps usa la ubicación actual del dispositivo como punto de partida).
+ * Prioriza el nombre de lugar exacto del embed, luego coordenadas y por último la dirección de texto.
+ */
+export function buildGoogleMapsDirectionsHref(input: string | undefined | null, address?: string): string {
+  const placeName = extractGoogleMapsPlaceName(input);
+  if (placeName) {
+    return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(placeName)}`;
+  }
+
+  const coords = extractGoogleMapsLatLon(input);
+  if (coords) {
+    return `https://www.google.com/maps/dir/?api=1&destination=${coords.lat},${coords.lon}`;
+  }
+  const trimmedAddress = address?.trim();
+  if (trimmedAddress) {
+    return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(trimmedAddress)}`;
+  }
+  return extractGoogleMapsEmbedSrc(input);
+}

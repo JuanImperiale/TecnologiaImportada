@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
-import { LocateFixed } from 'lucide-react';
 import { toast } from 'sonner';
 import { settingsService } from '@/services/settingsService';
 import { uploadService } from '@/services/uploadService';
-import { LeafletMap } from '@/components/ui/LeafletMap';
+import { extractGoogleMapsEmbedSrc } from '@/lib/utils';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -13,29 +12,6 @@ import { Textarea } from '@/components/ui/Textarea';
 import type { MedioPago } from '@/models';
 
 type ConfigTab = 'negocio' | 'contenido' | 'ubicacion';
-
-function extractCoordsFromGoogleUrl(url: string): { lat: number; lon: number } | undefined {
-  const trimmed = url.trim();
-  if (!trimmed) return undefined;
-
-  const patterns = [
-    /@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/,
-    /[?&](?:q|query)=(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/,
-    /!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/,
-  ];
-
-  for (const pattern of patterns) {
-    const match = trimmed.match(pattern);
-    if (!match) continue;
-    const lat = Number(match[1]);
-    const lon = Number(match[2]);
-    if (Number.isFinite(lat) && Number.isFinite(lon)) {
-      return { lat, lon };
-    }
-  }
-
-  return undefined;
-}
 
 const MEDIOS_PAGO: { value: MedioPago; label: string }[] = [
   { value: 'efectivo', label: 'Efectivo' },
@@ -47,7 +23,6 @@ const MEDIOS_PAGO: { value: MedioPago; label: string }[] = [
 export function ConfiguracionPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [geoLoading, setGeoLoading] = useState(false);
   const [tab, setTab] = useState<ConfigTab>('negocio');
   const [subiendoImagen, setSubiendoImagen] = useState(false);
   const [nombreNegocio, setNombreNegocio] = useState('');
@@ -62,11 +37,9 @@ export function ConfiguracionPage() {
   const [direccion, setDireccion] = useState('');
   const [telefono, setTelefono] = useState('');
   const [instagram, setInstagram] = useState('');
-  const [mapLat, setMapLat] = useState<number | undefined>();
-  const [mapLon, setMapLon] = useState<number | undefined>();
   const [contactoTitulo, setContactoTitulo] = useState('');
   const [contactoTexto, setContactoTexto] = useState('');
-  const [googleMapsUrl, setGoogleMapsUrl] = useState('');
+  const [mapEmbedInput, setMapEmbedInput] = useState('');
 
   useEffect(() => {
     settingsService.get().then((s) => {
@@ -82,11 +55,9 @@ export function ConfiguracionPage() {
       setDireccion(s.direccion ?? '');
       setTelefono(s.telefono ?? '');
       setInstagram(s.instagram ?? '');
-      setMapLat(s.mapLat);
-      setMapLon(s.mapLon);
       setContactoTitulo(s.contactoTitulo ?? '');
       setContactoTexto(s.contactoTexto ?? '');
-      setGoogleMapsUrl(s.mapaEmbedUrl ?? '');
+      setMapEmbedInput(s.mapaEmbedUrl ?? '');
       setLoading(false);
     });
   }, []);
@@ -130,9 +101,7 @@ export function ConfiguracionPage() {
       direccion: direccion.trim(),
       telefono: telefono.trim(),
       instagram: instagram.trim(),
-      mapLat,
-      mapLon,
-      mapaEmbedUrl: googleMapsUrl.trim(),
+      mapaEmbedUrl: extractGoogleMapsEmbedSrc(mapEmbedInput),
       contactoTitulo: contactoTitulo.trim(),
       contactoTexto: contactoTexto.trim(),
     });
@@ -142,45 +111,7 @@ export function ConfiguracionPage() {
     else toast.error(res.error.message);
   };
 
-  const usarMiUbicacion = () => {
-    if (!navigator.geolocation) {
-      toast.error('Tu navegador no soporta geolocalización.');
-      return;
-    }
-
-    setGeoLoading(true);
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setMapLat(position.coords.latitude);
-        setMapLon(position.coords.longitude);
-        setGeoLoading(false);
-        toast.success('Ubicación tomada desde el navegador. Guardá para aplicar.');
-      },
-      () => {
-        setGeoLoading(false);
-        toast.error('No se pudo obtener tu ubicación. Revisá los permisos del navegador.');
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
-    );
-  };
-
-  const tomarCoordenadasDesdeGoogle = () => {
-    const coords = extractCoordsFromGoogleUrl(googleMapsUrl);
-    if (!coords) {
-      toast.error('No pude detectar coordenadas en ese link de Google Maps.');
-      return;
-    }
-    setMapLat(coords.lat);
-    setMapLon(coords.lon);
-    toast.success('Coordenadas tomadas desde Google Maps. Guardá para aplicar.');
-  };
-
-  const googlePreviewSrc =
-    mapLat != null && mapLon != null
-      ? `https://www.google.com/maps?q=${mapLat},${mapLon}&z=16&output=embed`
-      : googleMapsUrl.trim()
-        ? `https://www.google.com/maps?q=${encodeURIComponent(googleMapsUrl.trim())}&z=16&output=embed`
-        : '';
+  const googlePreviewSrc = extractGoogleMapsEmbedSrc(mapEmbedInput);
 
   if (loading) return <Spinner />;
 
@@ -349,50 +280,16 @@ export function ConfiguracionPage() {
             <CardBody className="flex flex-col gap-4">
               <h2 className="text-base font-bold">Ubicación del local en el mapa</h2>
               <p className="text-sm text-text-soft">
-                Podés usar tu ubicación actual o hacer clic en el mapa para ubicar el pin exacto.
+                En Google Maps buscá el local, tocá "Compartir" → "Insertar un mapa" y pegá acá el
+                código completo del iframe (también podés pegar solo el link).
               </p>
-              <Input
-                label="Link de Google Maps (opcional)"
-                placeholder="Pegá el link de compartir ubicación"
-                value={googleMapsUrl}
-                onChange={(e) => setGoogleMapsUrl(e.target.value)}
+              <Textarea
+                label="Iframe de Google Maps"
+                placeholder='<iframe src="https://www.google.com/maps/embed?..."></iframe>'
+                value={mapEmbedInput}
+                onChange={(e) => setMapEmbedInput(e.target.value)}
+                rows={4}
               />
-              <div className="flex flex-wrap gap-2">
-                <Button type="button" variant="ghost" onClick={usarMiUbicacion} loading={geoLoading}>
-                  <LocateFixed size={16} aria-hidden="true" /> Usar mi ubicación actual
-                </Button>
-                <Button type="button" variant="ghost" onClick={tomarCoordenadasDesdeGoogle}>
-                  Tomar coordenadas desde Google
-                </Button>
-                {(mapLat != null || mapLon != null) && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => {
-                      setMapLat(undefined);
-                      setMapLon(undefined);
-                    }}
-                  >
-                    Limpiar ubicación
-                  </Button>
-                )}
-              </div>
-              <LeafletMap
-                lat={mapLat}
-                lon={mapLon}
-                label="TI"
-                interactive
-                onPick={({ lat, lon }) => {
-                  setMapLat(lat);
-                  setMapLon(lon);
-                }}
-                className="h-80 w-full overflow-hidden rounded-lg"
-              />
-              {mapLat != null && mapLon != null && (
-                <p className="text-xs text-text-faint">
-                  Lat {mapLat.toFixed(6)}, Lon {mapLon.toFixed(6)}
-                </p>
-              )}
               {googlePreviewSrc && (
                 <div className="overflow-hidden rounded-lg border border-line">
                   <iframe
@@ -409,7 +306,7 @@ export function ConfiguracionPage() {
         )}
 
         <div className="flex justify-end">
-          <Button onClick={guardar} loading={saving || subiendoImagen || geoLoading}>
+          <Button onClick={guardar} loading={saving || subiendoImagen}>
             Guardar configuración
           </Button>
         </div>
