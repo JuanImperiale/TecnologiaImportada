@@ -15,6 +15,7 @@ import {
   Menu,
   X,
   LogOut,
+  QrCode,
   type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
@@ -44,6 +45,7 @@ const GROUPS: { title: string; items: NavItem[] }[] = [
     title: 'Catálogo y stock',
     items: [
       { to: '/adm/inventario', label: 'Inventario', icon: Package },
+      { to: '/adm/qr', label: 'QR Inventario', icon: QrCode },
       { to: '/adm/categorias', label: 'Categorías', icon: Tag },
       { to: '/adm/importaciones', label: 'Importaciones', icon: Truck },
       { to: '/adm/novedades', label: 'Novedades', icon: Image },

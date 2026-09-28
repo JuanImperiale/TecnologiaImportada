@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Plus, Search, Pencil, Trash2, ImageOff, AlertTriangle } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, ImageOff, AlertTriangle, QrCode, Printer, Copy, ExternalLink } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import { useProducts } from '@/hooks/useProducts';
 import { useCategories } from '@/hooks/useCategories';
 import { productService } from '@/services/productService';
 import { UnitTabs } from '@/components/admin/UnitTabs';
+import { useQrPrint } from '@/hooks/useQrPrint';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -13,8 +15,8 @@ import { Badge } from '@/components/ui/Badge';
 import { Switch } from '@/components/ui/Switch';
 import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { ConfirmDialog } from '@/components/ui/Modal';
-import { formatPrice, matchesSearch, squareImg } from '@/lib/utils';
+import { ConfirmDialog, Modal } from '@/components/ui/Modal';
+import { formatPrice, matchesSearch, productPublicUrl, squareImg } from '@/lib/utils';
 import type { Negocio, Producto } from '@/models';
 
 export function InventarioPage() {
@@ -35,6 +37,17 @@ export function InventarioPage() {
 
   const [toDelete, setToDelete] = useState<Producto | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [qrProduct, setQrProduct] = useState<Producto | null>(null);
+  const { print: printQr, sheet: qrSheet } = useQrPrint();
+
+  const copiarLink = async (id: string) => {
+    try {
+      await navigator.clipboard.writeText(productPublicUrl(id));
+      toast.success('Link copiado.');
+    } catch {
+      toast.error('No se pudo copiar el link.');
+    }
+  };
 
   const toggleActivo = async (id: string, activo: boolean) => {
     const res = await productService.setActivo(id, activo);
@@ -127,6 +140,16 @@ export function InventarioPage() {
 
                 <div className="flex items-center gap-2 sm:gap-3">
                   <Switch checked={p.activo} onChange={(v) => toggleActivo(p.id, v)} />
+                  <button
+                    type="button"
+                    onClick={() => setQrProduct(p)}
+                    disabled={!p.activo}
+                    aria-label={`QR de ${p.nombre}`}
+                    title={p.activo ? 'Ver e imprimir QR' : 'Activá el producto para usar su QR (inactivo no se ve en la tienda)'}
+                    className="flex h-9 w-9 items-center justify-center rounded-md border border-line bg-surface-2 text-text hover:border-line-strong disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <QrCode size={16} aria-hidden="true" />
+                  </button>
                   <Link
                     to={`/adm/inventario/${p.id}`}
                     aria-label={`Editar ${p.nombre}`}
@@ -148,6 +171,40 @@ export function InventarioPage() {
           })}
         </div>
       )}
+
+      <Modal
+        open={!!qrProduct}
+        onClose={() => setQrProduct(null)}
+        title="QR del producto"
+        footer={
+          qrProduct && (
+            <>
+              <Button variant="ghost" size="sm" onClick={() => copiarLink(qrProduct.id)}>
+                <Copy size={15} aria-hidden="true" /> Copiar link
+              </Button>
+              <a href={productPublicUrl(qrProduct.id)} target="_blank" rel="noreferrer">
+                <Button variant="ghost" size="sm">
+                  <ExternalLink size={15} aria-hidden="true" /> Abrir
+                </Button>
+              </a>
+              <Button size="sm" onClick={() => printQr([{ id: qrProduct.id, nombre: qrProduct.nombre }])}>
+                <Printer size={15} aria-hidden="true" /> Imprimir
+              </Button>
+            </>
+          )
+        }
+      >
+        {qrProduct && (
+          <div className="flex flex-col items-center gap-3">
+            <div className="rounded-md bg-white p-3">
+              <QRCodeSVG value={productPublicUrl(qrProduct.id)} size={200} level="M" marginSize={0} />
+            </div>
+            <p className="text-center font-semibold">{qrProduct.nombre}</p>
+            <p className="break-all text-center text-xs text-text-soft">{productPublicUrl(qrProduct.id)}</p>
+          </div>
+        )}
+      </Modal>
+      {qrSheet}
 
       <ConfirmDialog
         open={!!toDelete}

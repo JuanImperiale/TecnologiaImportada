@@ -80,6 +80,24 @@ export function slugify(text: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
+/** Dominio público fijo: los QR impresos no deben apuntar a localhost. */
+export const PUBLIC_SITE_URL = (
+  import.meta.env.VITE_PUBLIC_SITE_URL || 'https://tecnologiaimportada.web.app'
+).replace(/\/+$/, '');
+
+/** Link público de la ficha de un producto (lo que codifica su QR). */
+export function productPublicUrl(id: string): string {
+  return `${PUBLIC_SITE_URL}/producto/${encodeURIComponent(id)}`;
+}
+
+/** Parte una lista en grupos de `size` elementos (ej. páginas de etiquetas). */
+export function chunk<T>(items: T[], size: number): T[][] {
+  if (size <= 0) return [items];
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
+
 /** Pasa a minúsculas y quita acentos para comparar textos de búsqueda. */
 export function normalizeSearchText(value: string): string {
   return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();

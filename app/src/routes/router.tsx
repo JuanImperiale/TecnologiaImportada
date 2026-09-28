@@ -31,6 +31,7 @@ const VentaDetailPage = lazy(() => import('@/routes/admin/VentaDetailPage').then
 const BalancePage = lazy(() => import('@/routes/admin/BalancePage').then((m) => ({ default: m.BalancePage })));
 const GastosPage = lazy(() => import('@/routes/admin/GastosPage').then((m) => ({ default: m.GastosPage })));
 const ImportacionesPage = lazy(() => import('@/routes/admin/ImportacionesPage').then((m) => ({ default: m.ImportacionesPage })));
+const QrInventarioPage = lazy(() => import('@/routes/admin/QrInventarioPage').then((m) => ({ default: m.QrInventarioPage })));
 const ContactosPage = lazy(() => import('@/routes/admin/ContactosPage').then((m) => ({ default: m.ContactosPage })));
 const ContenidoPage = lazy(() => import('@/routes/admin/ContenidoPage').then((m) => ({ default: m.ContenidoPage })));
 const ConfiguracionPage = lazy(() => import('@/routes/admin/ConfiguracionPage').then((m) => ({ default: m.ConfiguracionPage })));
@@ -88,6 +89,7 @@ export const router = createBrowserRouter([
           { path: 'balance', element: page(<BalancePage />) },
           { path: 'gastos', element: page(<GastosPage />) },
           { path: 'importaciones', element: page(<ImportacionesPage />) },
+          { path: 'qr', element: page(<QrInventarioPage />) },
           { path: 'contactos', element: page(<ContactosPage />) },
           { path: 'novedades', element: page(<NovedadesPageAdmin />) },
           { path: 'contenido', element: page(<ContenidoPage />) },
