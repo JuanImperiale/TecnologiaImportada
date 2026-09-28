@@ -16,6 +16,7 @@ import {
   X,
   LogOut,
   QrCode,
+  CreditCard,
   type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
@@ -57,6 +58,7 @@ const GROUPS: { title: string; items: NavItem[] }[] = [
     items: [
       { to: '/adm/balance', label: 'Balance', icon: PieChart },
       { to: '/adm/gastos', label: 'Gastos', icon: Wallet },
+      { to: '/adm/cuentas-a-cobrar', label: 'Cuentas a cobrar', icon: CreditCard },
     ],
   },
   {

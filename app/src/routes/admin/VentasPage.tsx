@@ -4,12 +4,14 @@ import { Plus, Search, Download, ChevronRight } from 'lucide-react';
 import { useVentas } from '@/hooks/useVentas';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { cn, formatMoney, formatUsd, formatDate } from '@/lib/utils';
+import { cn, formatMoney, formatUsd, formatDate, monthKey } from '@/lib/utils';
 import { medioPagoLabel } from '@/lib/mediosPago';
+import { exportarVentasCsv } from '@/lib/ventasCsv';
 import type { Venta } from '@/models';
 
 function ventaFecha(v: Venta): Date {
@@ -18,10 +20,27 @@ function ventaFecha(v: Venta): Date {
 
 type FiltroEstado = 'todas' | 'confirmada' | 'anulada';
 
+const MESES = [
+  { value: '01', label: 'Enero' },
+  { value: '02', label: 'Febrero' },
+  { value: '03', label: 'Marzo' },
+  { value: '04', label: 'Abril' },
+  { value: '05', label: 'Mayo' },
+  { value: '06', label: 'Junio' },
+  { value: '07', label: 'Julio' },
+  { value: '08', label: 'Agosto' },
+  { value: '09', label: 'Septiembre' },
+  { value: '10', label: 'Octubre' },
+  { value: '11', label: 'Noviembre' },
+  { value: '12', label: 'Diciembre' },
+];
+
 export function VentasPage() {
   const { ventas, loading, error } = useVentas();
   const [q, setQ] = useState('');
   const [estado, setEstado] = useState<FiltroEstado>('todas');
+  const [mesExportacion, setMesExportacion] = useState(() => monthKey(new Date()).slice(5));
+  const [anioExportacion, setAnioExportacion] = useState(() => monthKey(new Date()).slice(0, 4));
 
   const lista = useMemo(() => {
     const term = q.trim().toLowerCase();
@@ -34,30 +53,24 @@ export function VentasPage() {
     );
   }, [ventas, q, estado]);
 
+  const anios = useMemo(() => {
+    const disponibles = new Set(ventas.map((venta) => monthKey(venta.creado).slice(0, 4)));
+    disponibles.add(monthKey(new Date()).slice(0, 4));
+    return [...disponibles].sort((a, b) => Number(b) - Number(a)).map((value) => ({ value, label: value }));
+  }, [ventas]);
+  const periodoExportacion = `${anioExportacion}-${mesExportacion}`;
+  const ventasDelMes = useMemo(
+    () => ventas.filter((venta) => monthKey(venta.creado) === periodoExportacion),
+    [ventas, periodoExportacion],
+  );
+
   const exportarCsv = () => {
-    const cols = ['N°', 'Fecha', 'Cliente', 'Total USD', 'Total ARS', 'Envío', 'Pago USD', 'Pago ARS', 'Medio ARS', 'Estado', 'Facturación', 'N° Factura'];
-    const filas = lista.map((v) => [
-      v.numero,
-      formatDate(ventaFecha(v), 'DD/MM/YYYY HH:mm'),
-      v.cliente?.nombre ?? '',
-      v.totalUsd,
-      v.totalArs,
-      v.envio?.costo ?? 0,
-      v.pago?.usd ?? 0,
-      v.pago?.ars ?? 0,
-      medioPagoLabel(v.pago?.medioArs),
-      v.estado,
-      v.facturacion?.estado ?? '',
-      v.facturacion?.nroFacturaC ?? '',
-    ]);
-    const csv = [cols, ...filas]
-      .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(','))
-      .join('\n');
-    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const csv = exportarVentasCsv(ventasDelMes, periodoExportacion);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `ventas-${formatDate(new Date(), 'YYYY-MM-DD')}.csv`;
+    a.download = `ventas-${periodoExportacion}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -67,15 +80,35 @@ export function VentasPage() {
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold tracking-tight">Ventas</h1>
         <div className="flex gap-2">
-          <Button variant="ghost" onClick={exportarCsv} disabled={lista.length === 0}>
-            <Download size={16} aria-hidden="true" /> Exportar CSV
-          </Button>
           <Link to="/adm/ventas/nueva">
             <Button>
               <Plus size={16} aria-hidden="true" /> Nueva venta
             </Button>
           </Link>
         </div>
+      </div>
+
+      <div className="mb-4 flex flex-wrap items-end gap-3 rounded-md border border-line bg-surface p-3">
+        <Select
+          label="Mes para exportar"
+          value={mesExportacion}
+          onChange={(event) => setMesExportacion(event.target.value)}
+          options={MESES}
+          className="min-w-[150px]"
+        />
+        <Select
+          label="Año"
+          value={anioExportacion}
+          onChange={(event) => setAnioExportacion(event.target.value)}
+          options={anios}
+          className="min-w-[110px]"
+        />
+        <Button variant="ghost" onClick={exportarCsv} disabled={ventasDelMes.length === 0}>
+          <Download size={16} aria-hidden="true" /> Exportar {ventasDelMes.length} ventas
+        </Button>
+        <p className="w-full text-xs text-text-soft">
+          Incluye todas las ventas del mes seleccionado, también las anuladas, sin aplicar la búsqueda ni los filtros de estado.
+        </p>
       </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-3">

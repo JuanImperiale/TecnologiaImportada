@@ -135,9 +135,36 @@ export interface PagoVenta {
   /** Cobrado en pesos. */
   ars: number;
   /** Medio del pago en pesos. */
-  medioArs: MedioPago | MedioPagoLegacy;
+  medioArs: MedioPago | MedioPagoLegacy | 'varios';
   /** Cotización USD→ARS usada en la venta. */
   tipoCambio: number;
+}
+
+export interface PagoRegistrado {
+  fecha: Timestamp;
+  monto: number;
+  moneda: 'USD' | 'ARS';
+  medio: MedioPago;
+  registradoPor: string;
+}
+
+export type EstadoCuentaCobrar = 'pendiente' | 'pagada' | 'convertida' | 'cancelada';
+
+/** Crédito comercial separado de ventas hasta que se cobre el total. */
+export interface CuentaCobrar {
+  id: string;
+  numero: number;
+  items: ItemVenta[];
+  cliente: { nombre: string; celular?: string; cuitDni?: string };
+  canal: CanalVenta;
+  envio: Envio;
+  pagos: PagoRegistrado[];
+  estado: EstadoCuentaCobrar;
+  creada: Timestamp;
+  creadaPor: string;
+  fechaCompleta?: Timestamp;
+  ventaId?: string;
+  numeroVenta?: number;
 }
 
 export interface Venta {
@@ -161,6 +188,8 @@ export interface Venta {
   canal: CanalVenta;
   cliente?: { nombre?: string; celular?: string; cuitDni?: string };
   pedidoId?: string;
+  cuentaCobrarId?: string;
+  pagosDetalle?: PagoRegistrado[];
   estado: EstadoVenta;
   facturacion: Facturacion;
   vendedorId: string;
@@ -187,7 +216,7 @@ export interface Gasto {
   creadoPor: string;
 }
 
-export type TipoMovimiento = 'venta' | 'ingreso' | 'ajuste' | 'anulacion';
+export type TipoMovimiento = 'venta' | 'ingreso' | 'ajuste' | 'anulacion' | 'reserva' | 'liberacion';
 
 export interface MovimientoStock {
   id: string;

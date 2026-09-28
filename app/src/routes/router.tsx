@@ -26,6 +26,9 @@ const InventarioPage = lazy(() => import('@/routes/admin/InventarioPage').then((
 const ProductFormPage = lazy(() => import('@/routes/admin/ProductFormPage').then((m) => ({ default: m.ProductFormPage })));
 const CategoriasPage = lazy(() => import('@/routes/admin/CategoriasPage').then((m) => ({ default: m.CategoriasPage })));
 const VentasPage = lazy(() => import('@/routes/admin/VentasPage').then((m) => ({ default: m.VentasPage })));
+const CuentasCobrarPage = lazy(() => import('@/routes/admin/CuentasCobrarPage').then((m) => ({ default: m.CuentasCobrarPage })));
+const NuevaCuentaCobrarPage = lazy(() => import('@/routes/admin/CuentasCobrarPage').then((m) => ({ default: m.NuevaCuentaCobrarPage })));
+const CuentaCobrarDetailPage = lazy(() => import('@/routes/admin/CuentasCobrarPage').then((m) => ({ default: m.CuentaCobrarDetailPage })));
 const NuevaVentaPage = lazy(() => import('@/routes/admin/NuevaVentaPage').then((m) => ({ default: m.NuevaVentaPage })));
 const VentaDetailPage = lazy(() => import('@/routes/admin/VentaDetailPage').then((m) => ({ default: m.VentaDetailPage })));
 const BalancePage = lazy(() => import('@/routes/admin/BalancePage').then((m) => ({ default: m.BalancePage })));
@@ -86,6 +89,9 @@ export const router = createBrowserRouter([
           { path: 'ventas', element: page(<VentasPage />) },
           { path: 'ventas/nueva', element: page(<NuevaVentaPage />) },
           { path: 'ventas/:id', element: page(<VentaDetailPage />) },
+          { path: 'cuentas-a-cobrar', element: page(<CuentasCobrarPage />) },
+          { path: 'cuentas-a-cobrar/nueva', element: page(<NuevaCuentaCobrarPage />) },
+          { path: 'cuentas-a-cobrar/:id', element: page(<CuentaCobrarDetailPage />) },
           { path: 'balance', element: page(<BalancePage />) },
           { path: 'gastos', element: page(<GastosPage />) },
           { path: 'importaciones', element: page(<ImportacionesPage />) },

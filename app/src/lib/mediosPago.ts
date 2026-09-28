@@ -8,19 +8,20 @@ export const MEDIOS_PAGO: { value: MedioPago; label: string }[] = [
   { value: 'qr', label: 'QR postnet' },
 ];
 
-const LABELS: Record<MedioPago | MedioPagoLegacy, string> = {
+const LABELS: Record<MedioPago | MedioPagoLegacy | 'varios', string> = {
   efectivo: 'Efectivo',
   transferencia_emmy: 'Transferencia Emmy',
   transferencia_sole: 'Transferencia Sole',
   qr: 'QR postnet',
   transferencia: 'Transferencia',
   tarjeta: 'Tarjeta',
+  varios: 'Varios medios',
 };
 
 /** Etiqueta legible de un medio de pago (incluye los de ventas viejas). */
 export function medioPagoLabel(value: string | undefined | null): string {
   if (!value) return '';
-  return LABELS[value as MedioPago] ?? value;
+  return LABELS[value as MedioPago | MedioPagoLegacy | 'varios'] ?? value;
 }
 
 /**

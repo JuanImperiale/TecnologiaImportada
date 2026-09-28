@@ -83,7 +83,8 @@ Subcolección `products/{id}/variants`: `nombre` (ej. "128GB Negro"), `sku`, `st
 
 Reglas de stock:
 - El stock **baja** al confirmar una venta y **sube** al cargar un lote de importación o al anular una venta.
-- Cada movimiento se registra en `movimientosStock` (kardex): tipo (`venta`/`ingreso`/`ajuste`/`anulacion`), cantidad, motivo, usuario, fecha. Da trazabilidad y permite auditar diferencias.
+- Para cuentas a cobrar, el stock se **reserva al crear la cuenta** y se libera si se cancela antes de convertirla en venta.
+- Cada movimiento se registra en `movimientosStock` (kardex): tipo (`venta`/`ingreso`/`ajuste`/`anulacion`/`reserva`/`liberacion`), cantidad, motivo, usuario, fecha. Da trazabilidad y permite auditar diferencias.
 
 ---
 
@@ -96,9 +97,19 @@ Módulo para registrar ventas (presenciales o coordinadas por WhatsApp) y emitir
 - **Marcar cada línea como `venta` o `bonificación`** (ver sección Bonificaciones): un item bonificado va con **precio $0** pero conserva su costo real y descuenta stock.
 - Editar cantidad y precio por línea; aplicar **descuento** (monto o %).
 - Datos del cliente: **nombre + celular** (opcional; se pueden traer de una notificación). Para facturar conviene también CUIT/DNI (opcional).
-- **Medio de pago**: efectivo / transferencia / tarjeta / QR-Mercado Pago. Si tarjeta, opción de recargo.
+- **Medios de pago actuales**: efectivo, Transferencia Emmy, Transferencia Sole y QR postnet, según los habilitados en Configuración. No hay recargo de tarjeta en la lógica vigente.
 - **Envío**: al registrar la venta se elige **retiro en local** o **envío**; si es envío se carga el **costo/recargo de envío**, que se suma al total como línea aparte.
 - Al **confirmar**: descuenta stock, registra el movimiento, asigna **número de comprobante interno** correlativo y genera el **PDF** para el cliente.
+
+### Cuentas a cobrar (crédito con pagos parciales)
+- Módulo separado de Ventas para financiar artículos de la unidad **Productos**; no admite Accesorios.
+- Al crear una cuenta, el inventario se reserva inmediatamente mediante transacción y movimiento `reserva`. Todavía no se crea una venta ni se incluye ingreso en el balance.
+- Se guardan líneas con nombre, moneda, costo histórico y precio acordado editable por producto. El total se calcula por moneda; puede haber saldos USD y ARS independientes, sin conversiones ni pagos cruzados.
+- Cada pago registra fecha, monto, moneda, medio y usuario. USD se recibe en efectivo; los pagos ARS usan solo los medios habilitados en Configuración. El envío, si corresponde, se suma al saldo ARS.
+- La cuenta pasa a `pagada` cuando todos los saldos llegan a cero. La fecha de cierre es la fecha cronológica en que se completó el último saldo, aunque las cuotas se hayan cargado fuera de orden.
+- La acción **Registrar como una venta** crea una única venta confirmada con fecha de cierre, número correlativo, historial de pagos y vínculo a la cuenta. No descuenta nuevamente el stock.
+- La venta enlaza al detalle original; la exportación mensual CSV incluye la cuenta y sus pagos parciales.
+- Cancelar una cuenta no convertida libera el stock con movimiento `liberacion`. Los pagos recibidos quedan en el historial; la app no procesa devoluciones de dinero.
 
 ### Comprobante PDF (para el cliente)
 - Generado en el cliente con una librería JS (`@react-pdf/renderer`, `jsPDF` o `pdfmake`).
@@ -117,6 +128,7 @@ Como no integramos ARCA automáticamente, el sistema genera lo necesario para qu
 - Filtros: por fecha, unidad, medio de pago, vendedor, estado de facturación (`sin_facturar`/`facturada`).
 - Acceso al comprobante PDF del cliente y al resumen para facturación manual.
 - **Anular venta**: reintegra stock y ajusta el balance (queda registrada como anulada, no se borra).
+- **Exportar CSV mensual**: elegir mes y año; incluye todas las ventas del período (también anuladas), independiente de los filtros visibles. Tiene una fila por artículo con datos de cliente, cantidades, precios/costos, cobros, envío, facturación y pagos parciales cuando corresponde.
 
 ### Estructura de datos (colección `ventas`)
 

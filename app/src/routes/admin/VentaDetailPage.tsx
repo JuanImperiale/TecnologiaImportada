@@ -107,13 +107,13 @@ export function VentaDetailPage() {
       <div className="flex flex-col gap-5">
         <Card>
           <CardBody className="flex flex-col gap-3">
-            {venta.cliente?.nombre && (
-              <p className="text-sm">
-                <span className="text-text-soft">Cliente: </span>
-                {venta.cliente.nombre}
-                {venta.cliente.celular ? ` · ${venta.cliente.celular}` : ''}
-                {venta.cliente.cuitDni ? ` · ${venta.cliente.cuitDni}` : ''}
-              </p>
+            {(venta.cliente?.nombre || venta.cliente?.celular || venta.cliente?.cuitDni) && (
+              <div className="border-b border-line pb-3 text-sm">
+                <p className="font-semibold">Cliente</p>
+                <p>{venta.cliente?.nombre || 'Nombre no registrado'}</p>
+                {venta.cliente?.celular && <p className="text-text-soft">Celular: {venta.cliente.celular}</p>}
+                {venta.cliente?.cuitDni && <p className="text-text-soft">CUIT/DNI: {venta.cliente.cuitDni}</p>}
+              </div>
             )}
             <table className="w-full text-sm">
               <tbody>
@@ -122,14 +122,20 @@ export function VentaDetailPage() {
                     <td className="py-2">
                       {i.cantidad}× {i.nombre} <span className="text-text-faint">({i.moneda})</span>
                       {i.tipo === 'bonificacion' && <span className="ml-1 text-info">(Bonificación)</span>}
+                      <span className="block text-xs text-text-soft">
+                        Costo: {formatPrice(i.costoUnitario * i.cantidad, i.moneda)}
+                      </span>
                     </td>
                     <td className="py-2 text-right">
-                      {i.tipo === 'bonificacion' ? '—' : formatPrice(i.precioUnitario * i.cantidad, i.moneda)}
+                      {i.tipo === 'bonificacion' ? 'Bonificación · $0' : formatPrice(i.precioUnitario * i.cantidad, i.moneda)}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            <p className="text-xs text-text-soft">
+              Canal: {venta.canal === 'whatsapp' ? 'WhatsApp' : 'Presencial'} · Unidad: {venta.negocio} · Registró: {venta.vendedorId || 'No disponible'}
+            </p>
             <div className="flex flex-col gap-1 text-sm text-text-soft">
               {venta.totalUsd > 0 && <Row label="Total en dólares" value={formatUsd(venta.totalUsd)} />}
               {venta.descuento && venta.descuento.montoArs > 0 && (
@@ -157,8 +163,34 @@ export function VentaDetailPage() {
                 {(venta.totalArs > 0 || venta.costoArs > 0) && <span className="font-bold text-success">{formatMoney(margenArs)}</span>}
               </p>
             </div>
+            {venta.cuentaCobrarId && (
+              <Link to={`/adm/cuentas-a-cobrar/${venta.cuentaCobrarId}`} className="text-sm font-medium underline">
+                Ver cuenta a cobrar y pagos parciales
+              </Link>
+            )}
           </CardBody>
         </Card>
+
+        {venta.pagosDetalle && venta.pagosDetalle.length > 0 && (
+          <Card>
+            <CardBody className="flex flex-col gap-3">
+              <h2 className="text-base font-bold">Historial de pagos parciales</h2>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead><tr className="text-text-soft"><th className="py-2 pr-3">Fecha</th><th className="py-2 pr-3">Importe</th><th className="py-2 pr-3">Medio</th><th className="py-2">Registró</th></tr></thead>
+                  <tbody>{venta.pagosDetalle.map((pago, index) => (
+                    <tr key={`${index}-${pago.fecha.toMillis()}`} className="border-t border-line">
+                      <td className="py-2 pr-3">{formatDate(pago.fecha.toDate())}</td>
+                      <td className="py-2 pr-3 font-medium">{formatPrice(pago.monto, pago.moneda)}</td>
+                      <td className="py-2 pr-3">{medioPagoLabel(pago.medio)}</td>
+                      <td className="py-2">{pago.registradoPor}</td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              </div>
+            </CardBody>
+          </Card>
+        )}
 
         <div className="flex flex-wrap gap-2">
           <Button variant="ghost" onClick={() => printComprobante(venta, nombreNegocio)}>

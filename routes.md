@@ -50,9 +50,12 @@ Notas: `/carrito/confirmar` puede ser una página o un modal sobre el carrito. N
 | `/adm/inventario/nuevo` | Alta de producto (elige unidad) | Autenticado | Inventario |
 | `/adm/inventario/:id` | Editar: variantes, stock, costo, precio, imágenes | Autenticado | Inventario |
 | `/adm/categorias` | CRUD de categorías y orden (por unidad) | Autenticado | Categorías |
-| `/adm/ventas` | Listado con desglose (qué/cómo se vendió), filtros, comprobantes | Autenticado | Ventas |
+| `/adm/ventas` | Listado, filtros y exportación mensual CSV con detalle de productos, cliente, pagos y facturación | Autenticado | Ventas |
 | `/adm/ventas/nueva` | Crear venta: agregar productos, medio de pago, descuento | Autenticado | Ventas |
 | `/adm/ventas/:id` | Detalle, comprobante PDF del cliente, reporte para facturación manual, anular | Autenticado | Ventas |
+| `/adm/cuentas-a-cobrar` | Listado de cuentas pendientes, pagadas, convertidas y canceladas | Autenticado | Cuentas a cobrar |
+| `/adm/cuentas-a-cobrar/nueva` | Crear cuenta de crédito con productos, cliente, entrega y reserva de stock | Autenticado | Cuentas a cobrar |
+| `/adm/cuentas-a-cobrar/:id` | Registrar pagos parciales, revisar saldos e historial, cerrar como venta o cancelar | Autenticado | Cuentas a cobrar |
 | `/adm/balance` | Balance mensual: ingresos, COGS, margen por unidad, ganancia neta | Autenticado | Balance |
 | `/adm/gastos` | Registrar/editar gastos comunes (alquiler, servicios, insumos…) | Autenticado | Gastos |
 | `/adm/importaciones` | Lotes de importación | Autenticado | Importaciones |
