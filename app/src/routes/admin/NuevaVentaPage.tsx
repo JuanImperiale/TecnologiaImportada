@@ -11,18 +11,12 @@ import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
 import { ClienteSelector } from '@/components/admin/ClienteSelector';
 import { baseDescuentoEfectivo, calcDescuento, cn, formatMoney, formatUsd, matchesSearch } from '@/lib/utils';
+import { MEDIOS_PAGO } from '@/lib/mediosPago';
 import type { ItemVenta, MedioPago, Pedido, Producto } from '@/models';
 
 interface Linea extends ItemVenta {
   stock: number;
 }
-
-const MEDIOS_ARS: { value: MedioPago; label: string }[] = [
-  { value: 'efectivo', label: 'Efectivo' },
-  { value: 'transferencia', label: 'Transferencia' },
-  { value: 'tarjeta', label: 'Tarjeta' },
-  { value: 'qr', label: 'QR / Mercado Pago' },
-];
 
 export function NuevaVentaPage() {
   const navigate = useNavigate();
@@ -39,7 +33,6 @@ export function NuevaVentaPage() {
   const [pagoArs, setPagoArs] = useState('');
   const [medioArs, setMedioArs] = useState<MedioPago>('efectivo');
   const [mediosPago, setMediosPago] = useState<MedioPago[]>(DEFAULT_MEDIOS_PAGO);
-  const [recargoTarjeta, setRecargoTarjeta] = useState(0);
   const [aplicarDescuento, setAplicarDescuento] = useState(false);
   const [descuentoPct, setDescuentoPct] = useState('10');
   const [cliente, setCliente] = useState<{ nombre: string; celular: string; cuitDni?: string }>({ nombre: '', celular: '', cuitDni: '' });
@@ -89,7 +82,6 @@ export function NuevaVentaPage() {
       if (!active) return;
       const habilitados = s.mediosPago && s.mediosPago.length > 0 ? s.mediosPago : DEFAULT_MEDIOS_PAGO;
       setMediosPago(habilitados);
-      setRecargoTarjeta(Number(s.recargoTarjeta ?? 0));
       setDescuentoPct(String(s.descuentoEfectivo ?? 10));
       setMedioArs((prev) => (habilitados.includes(prev) ? prev : habilitados[0] ?? 'efectivo'));
     });
@@ -130,12 +122,15 @@ export function NuevaVentaPage() {
   const descuentoMonto = aplicarDescuento && puedeDescontar ? calcDescuento(baseDescuento, Number(descuentoPct)) : 0;
   const totalArsNeto = t.totalArs - descuentoMonto;
   const arsSiTodoEnPesos = totalArsNeto + envioCosto + t.totalUsd * tc;
-  const recargoTarjetaMonto =
-    medioArs === 'tarjeta' ? ((totalArsNeto + envioCosto) * recargoTarjeta) / 100 : 0;
-  const totalArsSugerido = totalArsNeto + envioCosto + recargoTarjetaMonto;
-  const mediosArsDisponibles = MEDIOS_ARS.filter((medio) => mediosPago.includes(medio.value));
+  const totalArsSugerido = totalArsNeto + envioCosto;
+  const mediosArsDisponibles = MEDIOS_PAGO.filter((medio) => mediosPago.includes(medio.value));
 
   const confirmar = async () => {
+    const usdCobrado = pagoUsd.trim() === '' ? t.totalUsd : Number(pagoUsd) || 0;
+    if (t.totalUsd > 0 && usdCobrado < t.totalUsd && tc <= 0) {
+      toast.error('Cargá la cotización del dólar: parte de lo vendido en USD se cobra en pesos.');
+      return;
+    }
     setGuardando(true);
     const res = await saleService.crearVenta({
       items: lineas.map((l) => ({
@@ -150,7 +145,7 @@ export function NuevaVentaPage() {
       })),
       envio: { metodo: metodoEnvio, costo: envioCosto },
       pago: {
-        usd: pagoUsd.trim() === '' ? t.totalUsd : Number(pagoUsd) || 0,
+        usd: usdCobrado,
         ars: pagoArs.trim() === '' ? totalArsSugerido : Number(pagoArs) || 0,
         medioArs,
         tipoCambio: tc,
@@ -236,9 +231,6 @@ export function NuevaVentaPage() {
                 <div className="flex justify-between"><span className="text-text-soft">Descuento efectivo {Number(descuentoPct)}%</span><span className="font-bold text-success">−{formatMoney(descuentoMonto)}</span></div>
               )}
               <div className="flex justify-between"><span className="text-text-soft">A cobrar en pesos {envioCosto > 0 ? '(con envío)' : ''}</span><span className="font-bold">{formatMoney(totalArsNeto + envioCosto)}</span></div>
-              {recargoTarjetaMonto > 0 && (
-                <div className="flex justify-between"><span className="text-text-soft">Recargo tarjeta</span><span className="font-bold">{formatMoney(recargoTarjetaMonto)}</span></div>
-              )}
               {t.totalUsd > 0 && tc > 0 && (
                 <div className="mt-1 border-t border-line pt-1 text-text-soft">Si cobra todo en pesos: <span className="font-bold text-text">{formatMoney(arsSiTodoEnPesos)}</span> (dólar a {tc})</div>
               )}
@@ -293,7 +285,7 @@ export function NuevaVentaPage() {
                 )}
               </div>
             )}
-            <p className="text-sm text-text-soft">Dejá los montos vacíos para usar los totales sugeridos. El dólar se cobra en efectivo. Si elegís tarjeta, se sugiere el recargo configurado.</p>
+            <p className="text-sm text-text-soft">Dejá los montos vacíos para usar los totales sugeridos. El dólar se cobra en efectivo.</p>
           </CardBody>
         </Card>
 

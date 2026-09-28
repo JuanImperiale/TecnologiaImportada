@@ -9,16 +9,10 @@ import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
 import { Switch } from '@/components/ui/Switch';
 import { Textarea } from '@/components/ui/Textarea';
+import { MEDIOS_PAGO } from '@/lib/mediosPago';
 import type { MedioPago } from '@/models';
 
 type ConfigTab = 'negocio' | 'contenido' | 'ubicacion';
-
-const MEDIOS_PAGO: { value: MedioPago; label: string }[] = [
-  { value: 'efectivo', label: 'Efectivo' },
-  { value: 'transferencia', label: 'Transferencia' },
-  { value: 'tarjeta', label: 'Tarjeta' },
-  { value: 'qr', label: 'QR / Mercado Pago' },
-];
 
 export function ConfiguracionPage() {
   const [loading, setLoading] = useState(true);
@@ -29,7 +23,6 @@ export function ConfiguracionPage() {
   const [whatsapp, setWhatsapp] = useState('');
   const [stockMinimoDefault, setStockMinimoDefault] = useState('');
   const [cuit, setCuit] = useState('');
-  const [recargoTarjeta, setRecargoTarjeta] = useState('');
   const [descuentoEfectivo, setDescuentoEfectivo] = useState('');
   const [mediosPago, setMediosPago] = useState<MedioPago[]>([]);
   const [nosotrosTitulo, setNosotrosTitulo] = useState('');
@@ -48,7 +41,6 @@ export function ConfiguracionPage() {
       setWhatsapp(s.whatsapp ?? '');
       setStockMinimoDefault(String(s.stockMinimoDefault ?? ''));
       setCuit(s.cuit ?? '');
-      setRecargoTarjeta(String(s.recargoTarjeta ?? 0));
       setDescuentoEfectivo(String(s.descuentoEfectivo ?? 10));
       setMediosPago(s.mediosPago ?? []);
       setNosotrosTitulo(s.nosotrosTitulo ?? '');
@@ -95,7 +87,6 @@ export function ConfiguracionPage() {
       whatsapp: whatsapp.replace(/\D/g, ''),
       stockMinimoDefault: Number(stockMinimoDefault) || 0,
       cuit: cuit.trim(),
-      recargoTarjeta: Number(recargoTarjeta) || 0,
       descuentoEfectivo: Math.min(100, Math.max(0, Number(descuentoEfectivo) || 0)),
       mediosPago,
       nosotrosTitulo: nosotrosTitulo.trim(),
@@ -192,12 +183,6 @@ export function ConfiguracionPage() {
                 onChange={(e) => setStockMinimoDefault(e.target.value)}
               />
               <Input label="CUIT" value={cuit} onChange={(e) => setCuit(e.target.value)} />
-              <Input
-                label="Recargo por tarjeta (%)"
-                type="number"
-                value={recargoTarjeta}
-                onChange={(e) => setRecargoTarjeta(e.target.value)}
-              />
               <div>
                 <Input
                   label="Descuento por pago en efectivo (%)"

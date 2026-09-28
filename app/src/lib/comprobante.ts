@@ -1,5 +1,6 @@
 import type { Venta } from '@/models';
 import { formatMoney, formatUsd, formatPrice, formatDate } from './utils';
+import { medioPagoLabel } from './mediosPago';
 
 /**
  * Abre una ventana con el comprobante listo para imprimir o "Guardar como PDF".
@@ -37,7 +38,7 @@ export function printComprobante(venta: Venta, nombreNegocio: string) {
   const pagoTxt =
     `${p?.usd ? `US$ ${p.usd} en efectivo` : ''}` +
     `${p?.usd && p?.ars ? ' + ' : ''}` +
-    `${p?.ars ? `${formatMoney(p.ars)} (${p.medioArs})` : ''}`;
+    `${p?.ars ? `${formatMoney(p.ars)} (${escapeHtml(medioPagoLabel(p.medioArs))})` : ''}`;
 
   const html = `<!doctype html><html lang="es"><head><meta charset="utf-8">
   <title>Comprobante #${venta.numero}</title>

@@ -109,7 +109,9 @@ export interface ItemVenta extends ItemBase {
   costoUnitario: number;
 }
 
-export type MedioPago = 'efectivo' | 'transferencia' | 'tarjeta' | 'qr';
+export type MedioPago = 'efectivo' | 'transferencia_emmy' | 'transferencia_sole' | 'qr';
+/** Medios que ya no se ofrecen pero pueden figurar en ventas viejas. */
+export type MedioPagoLegacy = 'transferencia' | 'tarjeta';
 export type CanalVenta = 'presencial' | 'whatsapp';
 export type EstadoVenta = 'confirmada' | 'anulada';
 export type EstadoFacturacion = 'sin_facturar' | 'facturada';
@@ -133,7 +135,7 @@ export interface PagoVenta {
   /** Cobrado en pesos. */
   ars: number;
   /** Medio del pago en pesos. */
-  medioArs: MedioPago;
+  medioArs: MedioPago | MedioPagoLegacy;
   /** Cotización USD→ARS usada en la venta. */
   tipoCambio: number;
 }
@@ -228,7 +230,6 @@ export interface Settings {
   whatsapp: string;
   stockMinimoDefault: number;
   cuit?: string;
-  recargoTarjeta: number;
   /** % de descuento sugerido para pagos en efectivo. */
   descuentoEfectivo?: number;
   mediosPago: MedioPago[];

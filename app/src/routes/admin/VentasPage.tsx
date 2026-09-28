@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { cn, formatMoney, formatUsd, formatDate } from '@/lib/utils';
+import { medioPagoLabel } from '@/lib/mediosPago';
 import type { Venta } from '@/models';
 
 function ventaFecha(v: Venta): Date {
@@ -44,7 +45,7 @@ export function VentasPage() {
       v.envio?.costo ?? 0,
       v.pago?.usd ?? 0,
       v.pago?.ars ?? 0,
-      v.pago?.medioArs ?? '',
+      medioPagoLabel(v.pago?.medioArs),
       v.estado,
       v.facturacion?.estado ?? '',
       v.facturacion?.nroFacturaC ?? '',
@@ -115,7 +116,7 @@ export function VentasPage() {
                   <p className="truncate font-medium">{v.cliente?.nombre || 'Consumidor final'}</p>
                   <p className="text-sm text-text-soft">
                     {formatDate(ventaFecha(v), 'DD/MM/YYYY HH:mm')}
-                    {v.pago?.medioArs ? ` · ${v.pago.medioArs}` : ''}
+                    {v.pago?.medioArs ? ` · ${medioPagoLabel(v.pago.medioArs)}` : ''}
                   </p>
                 </div>
                 <div className="text-right">

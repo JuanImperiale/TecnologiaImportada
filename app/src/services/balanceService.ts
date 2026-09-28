@@ -60,7 +60,38 @@ function resolveNegocio(item: Partial<Venta['items'][number]>, venta: Venta): Un
 }
 
 /**
- * Balance de un mes ("YYYY-MM"), separado por moneda (USD / ARS), sin conversión.
+ * Parte (0–1) de lo vendido en USD que se cobró en pesos, y la cotización usada.
+ * Si la venta no guardó cotización, se deduce de los pesos cobrados de más sobre lo vendido en pesos.
+ */
+export function conversionUsdAPesos(
+  v: Pick<Venta, 'totalUsd' | 'totalArs' | 'envio' | 'pago'>,
+): { fraccion: number; tc: number } {
+  if (v.totalUsd <= 0) return { fraccion: 0, tc: 0 };
+  const cobradoUsd = Math.min(Math.max(v.pago?.usd ?? 0, 0), v.totalUsd);
+  const usdEnPesos = v.totalUsd - cobradoUsd;
+  if (usdEnPesos <= 0) return { fraccion: 0, tc: 0 };
+
+  let tc = v.pago?.tipoCambio ?? 0;
+  if (tc <= 0) {
+    const excedenteArs = (v.pago?.ars ?? 0) - (v.totalArs + (v.envio?.costo ?? 0));
+    tc = excedenteArs > 0 ? excedenteArs / usdEnPesos : 0;
+  }
+  if (tc <= 0) return { fraccion: 0, tc: 0 };
+  return { fraccion: usdEnPesos / v.totalUsd, tc };
+}
+
+/** Totales de una venta según la moneda en que realmente se cobró (ARS incluye envío). */
+export function totalesCobrados(v: Venta): { usd: number; ars: number } {
+  const { fraccion, tc } = conversionUsdAPesos(v);
+  return {
+    usd: v.totalUsd * (1 - fraccion),
+    ars: v.totalArs + (v.envio?.costo ?? 0) + v.totalUsd * fraccion * tc,
+  };
+}
+
+/**
+ * Balance de un mes ("YYYY-MM"), separado por la moneda en que se cobró.
+ * Lo vendido en USD pero cobrado en pesos pasa a pesos con la cotización de la venta.
  * Dentro de cada moneda se atribuye por unidad de negocio (por item).
  * El costo de las bonificaciones se reasigna a la unidad que cobró (misma moneda).
  */
@@ -81,21 +112,42 @@ export function computeBalance(ventas: Venta[], gastos: Gasto[], ym: string): Ba
       ARS: { productos: 0, accesorios: 0 },
     };
     const bonifPorMoneda: Record<MonedaBalance, number> = { USD: 0, ARS: 0 };
+    const { fraccion, tc } = conversionUsdAPesos(v);
+
+    const acumular = (
+      moneda: MonedaBalance,
+      negocio: UnidadBalance,
+      bonificacion: boolean,
+      ingreso: number,
+      costo: number,
+      unidades: number,
+    ) => {
+      const bloque = moneda === 'USD' ? usd : ars;
+      if (bonificacion) {
+        bloque.bonifUnidades += unidades;
+        bloque.bonifCosto += costo;
+        bonifPorMoneda[moneda] += costo;
+      } else {
+        bloque.ingresos[negocio] += ingreso;
+        bloque.costo[negocio] += costo;
+        pagado[moneda][negocio] += ingreso;
+      }
+    };
 
     for (const it of v.items ?? []) {
       const moneda = resolveMoneda(it);
       const negocio = resolveNegocio(it, v);
-      const bloque = moneda === 'USD' ? usd : ars;
+      const bonificacion = it.tipo === 'bonificacion';
       const costo = (it.costoUnitario ?? 0) * (it.cantidad ?? 0);
-      if (it.tipo === 'bonificacion') {
-        bloque.bonifUnidades += it.cantidad;
-        bloque.bonifCosto += costo;
-        bonifPorMoneda[moneda] += costo;
+      const ingreso = bonificacion ? 0 : (it.precioUnitario ?? 0) * (it.cantidad ?? 0);
+      const unidades = it.cantidad ?? 0;
+
+      if (moneda === 'USD' && fraccion > 0) {
+        const f = fraccion;
+        acumular('USD', negocio, bonificacion, ingreso * (1 - f), costo * (1 - f), f < 1 ? unidades : 0);
+        acumular('ARS', negocio, bonificacion, ingreso * f * tc, costo * f * tc, f < 1 ? 0 : unidades);
       } else {
-        const ingreso = (it.precioUnitario ?? 0) * (it.cantidad ?? 0);
-        bloque.ingresos[negocio] += ingreso;
-        bloque.costo[negocio] += costo;
-        pagado[moneda][negocio] += ingreso;
+        acumular(moneda, negocio, bonificacion, ingreso, costo, unidades);
       }
     }
 

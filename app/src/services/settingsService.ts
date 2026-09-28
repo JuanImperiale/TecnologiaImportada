@@ -1,21 +1,16 @@
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { MEDIOS_PAGO, normalizeMediosPago } from '@/lib/mediosPago';
 import { run, type Result } from './result';
 import type { MedioPago, Settings } from '@/models';
 
 const ref = () => doc(db, 'settings', 'general');
 
-export const DEFAULT_MEDIOS_PAGO: MedioPago[] = [
-  'efectivo',
-  'transferencia',
-  'tarjeta',
-  'qr',
-];
+export const DEFAULT_MEDIOS_PAGO: MedioPago[] = MEDIOS_PAGO.map((m) => m.value);
 
 export const DEFAULT_SETTINGS: Partial<Settings> = {
   nombreNegocio: 'Tecnologia Importada',
   stockMinimoDefault: 0,
-  recargoTarjeta: 0,
   descuentoEfectivo: 10,
   mediosPago: DEFAULT_MEDIOS_PAGO,
   heroTitulo: 'Tecnologia que si se siente premium.',
@@ -57,10 +52,7 @@ export const settingsService = {
         ...data,
         mapLat: asNumber(data.mapLat),
         mapLon: asNumber(data.mapLon),
-        mediosPago:
-          data.mediosPago && data.mediosPago.length > 0
-            ? data.mediosPago
-            : DEFAULT_MEDIOS_PAGO,
+        mediosPago: normalizeMediosPago(data.mediosPago),
       };
     } catch (error) {
       console.error('[settingsService]', error);

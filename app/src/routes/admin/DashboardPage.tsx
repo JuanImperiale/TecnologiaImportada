@@ -7,6 +7,7 @@ import { useCatalog } from '@/hooks/useCatalog';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Spinner } from '@/components/ui/Spinner';
 import { formatMoney, formatUsd, monthKey, toDate, formatDate } from '@/lib/utils';
+import { totalesCobrados } from '@/services/balanceService';
 
 function Metric({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
@@ -29,8 +30,9 @@ export function DashboardPage() {
   const data = useMemo(() => {
     const mes = ventas.filter((v) => v.estado === 'confirmada' && monthKey(v.creado) === ym);
     const hoyVentas = mes.filter((v) => formatDate(toDate(v.creado), 'YYYY-MM-DD') === hoy);
-    const totalUsd = mes.reduce((a, v) => a + v.totalUsd, 0);
-    const totalArs = mes.reduce((a, v) => a + v.totalArs + (v.envio?.costo ?? 0), 0);
+    const cobrados = mes.map(totalesCobrados);
+    const totalUsd = cobrados.reduce((a, c) => a + c.usd, 0);
+    const totalArs = cobrados.reduce((a, c) => a + c.ars, 0);
 
     // Top productos del mes (por cantidad vendida, items tipo venta)
     const conteo = new Map<string, { nombre: string; cant: number }>();

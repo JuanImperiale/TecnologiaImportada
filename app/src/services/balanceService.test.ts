@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeBalance } from './balanceService';
+import { computeBalance, totalesCobrados } from './balanceService';
 import { monthKey } from '@/lib/utils';
 import type { ItemVenta, Venta } from '@/models';
 
@@ -42,6 +42,53 @@ function venta(items: ItemVenta[], extra: Partial<Venta> = {}): Venta {
     ...extra,
   };
 }
+
+describe('computeBalance – USD cobrado en pesos', () => {
+  const ray = item({ negocio: 'productos', moneda: 'USD', precioUnitario: 600, costoUnitario: 470 });
+
+  it('moves a USD sale paid fully in pesos to ARS at the sale exchange rate', () => {
+    const v = venta([ray], { totalUsd: 600, pago: { usd: 0, ars: 889200, medioArs: 'transferencia_sole', tipoCambio: 1482 } });
+    const b = computeBalance([v], [], ym);
+    expect(b.usd.ingresos.total).toBe(0);
+    expect(b.usd.costo.total).toBe(0);
+    expect(b.ars.ingresos.productos).toBe(889200);
+    expect(b.ars.costo.productos).toBe(696540);
+    expect(b.ars.margen.total).toBe(192660);
+  });
+
+  it('splits proportionally when part is paid in dollars', () => {
+    const v = venta([ray], { totalUsd: 600, pago: { usd: 300, ars: 444600, medioArs: 'efectivo', tipoCambio: 1482 } });
+    const b = computeBalance([v], [], ym);
+    expect(b.usd.ingresos.total).toBe(300);
+    expect(b.usd.costo.total).toBe(235);
+    expect(b.ars.ingresos.productos).toBe(444600);
+  });
+
+  it('stays in USD when paid in dollars or when no rate can be derived', () => {
+    const enUsd = venta([ray], { totalUsd: 600, pago: { usd: 600, ars: 0, medioArs: 'efectivo', tipoCambio: 1482 } });
+    const sinTc = venta([ray], { totalUsd: 600, pago: { usd: 0, ars: 0, medioArs: 'efectivo', tipoCambio: 0 } });
+    expect(computeBalance([enUsd], [], ym).usd.ingresos.total).toBe(600);
+    expect(computeBalance([sinTc], [], ym).usd.ingresos.total).toBe(600);
+  });
+
+  it('derives the rate from the extra pesos collected when none was saved', () => {
+    const v = venta([ray], { totalUsd: 600, pago: { usd: 0, ars: 889200, medioArs: 'transferencia', tipoCambio: 0 } });
+    const b = computeBalance([v], [], ym);
+    expect(b.usd.ingresos.total).toBe(0);
+    expect(b.ars.ingresos.productos).toBe(889200);
+    expect(b.ars.costo.productos).toBe(696540);
+  });
+
+  it('totalesCobrados converts the pesos-paid USD part and adds shipping', () => {
+    const v = venta([ray], {
+      totalUsd: 600,
+      totalArs: 1000,
+      envio: { metodo: 'envio', costo: 500 },
+      pago: { usd: 0, ars: 890700, medioArs: 'efectivo', tipoCambio: 1482 },
+    });
+    expect(totalesCobrados(v)).toEqual({ usd: 0, ars: 1000 + 500 + 889200 });
+  });
+});
 
 describe('computeBalance – descuento efectivo', () => {
   it('keeps ARS income unchanged when there is no discount', () => {

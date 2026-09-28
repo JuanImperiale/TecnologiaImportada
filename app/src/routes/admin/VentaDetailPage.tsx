@@ -13,6 +13,7 @@ import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ConfirmDialog } from '@/components/ui/Modal';
 import { formatMoney, formatUsd, formatPrice, formatDate } from '@/lib/utils';
+import { medioPagoLabel } from '@/lib/mediosPago';
 import type { Venta } from '@/models';
 
 export function VentaDetailPage() {
@@ -146,7 +147,7 @@ export function VentaDetailPage() {
                 <span className="font-medium text-text">Cobro:</span>{' '}
                 {p?.usd ? `US$ ${p.usd} efectivo` : ''}
                 {p?.usd && p?.ars ? ' + ' : ''}
-                {p?.ars ? `${formatMoney(p.ars)} (${p.medioArs})` : ''}
+                {p?.ars ? `${formatMoney(p.ars)} (${medioPagoLabel(p.medioArs)})` : ''}
                 {p?.tipoCambio ? ` · dólar a ${p.tipoCambio}` : ''}
               </p>
               <p className="mt-1">

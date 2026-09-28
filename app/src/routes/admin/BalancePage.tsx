@@ -111,23 +111,29 @@ export function BalancePage() {
         <Spinner />
       ) : (
         <div className="flex flex-col gap-5">
-          <p className="text-sm text-text-soft">{b.ventasCount} venta(s) en el mes. Lo vendido en dólares y en pesos se muestra por separado (sin conversión).</p>
+          <p className="text-sm text-text-soft">{b.ventasCount} venta(s) en el mes. Se agrupa por la moneda en que se cobró: lo vendido en dólares pero cobrado en pesos se suma a pesos con la cotización de esa venta.</p>
 
           {/* Resultado por moneda */}
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-3 rounded-lg border border-line p-4">
               <p className="font-bold">En dólares</p>
-              <Metric label="Margen bruto" value={formatUsd(b.usd.margen.total)} />
-              <Metric label="Resultado en USD" value={formatUsd(b.netaUsd)} strong />
+              <div className="grid grid-cols-2 gap-3">
+                <Metric label="Vendido" value={formatUsd(b.usd.ingresos.total)} />
+                <Metric label="Costo" value={formatUsd(b.usd.costo.total)} />
+                <Metric label="Margen bruto" value={formatUsd(b.usd.margen.total)} />
+                <Metric label="Ganancia en USD" value={formatUsd(b.netaUsd)} strong />
+              </div>
             </div>
             <div className="flex flex-col gap-3 rounded-lg border border-line p-4">
               <p className="font-bold">En pesos</p>
               <div className="grid grid-cols-2 gap-3">
+                <Metric label="Vendido" value={formatMoney(b.ars.ingresos.total)} />
+                <Metric label="Costo" value={formatMoney(b.ars.costo.total)} />
                 <Metric label="Margen bruto" value={formatMoney(b.ars.margen.total)} />
                 <Metric label="Envíos" value={formatMoney(b.envios)} />
                 {b.descuentosArs > 0 && <Metric label="Descuentos efectivo" value={`−${formatMoney(b.descuentosArs)}`} />}
                 <Metric label="Gastos" value={formatMoney(b.gastos)} />
-                <Metric label="Ganancia neta" value={formatMoney(b.netaArs)} strong />
+                <Metric label="Ganancia en $" value={formatMoney(b.netaArs)} strong />
               </div>
             </div>
           </div>
