@@ -125,10 +125,11 @@ Como no integramos ARCA automáticamente, el sistema genera lo necesario para qu
 
 ### Listado de ventas
 - Todas las ventas con **desglose: qué se vendió** (items y unidades), **cómo se vendió** (medio de pago, retiro/envío, presencial/WhatsApp), total y margen.
+- El listado carga 30 ventas por página; la búsqueda y los filtros se aplican sobre las páginas cargadas. Se pueden solicitar páginas anteriores.
 - Filtros: por fecha, unidad, medio de pago, vendedor, estado de facturación (`sin_facturar`/`facturada`).
 - Acceso al comprobante PDF del cliente y al resumen para facturación manual.
 - **Anular venta**: reintegra stock y ajusta el balance (queda registrada como anulada, no se borra).
-- **Exportar CSV mensual**: elegir mes y año; incluye todas las ventas del período (también anuladas), independiente de los filtros visibles. Tiene una fila por artículo con datos de cliente, cantidades, precios/costos, cobros, envío, facturación y pagos parciales cuando corresponde.
+- **Exportar CSV mensual**: elegir mes y año; al solicitarlo consulta todas las ventas del período (también anuladas), independiente de las páginas y filtros visibles. Tiene una fila por artículo con datos de cliente, cantidades, precios/costos, cobros, envío, facturación y pagos parciales cuando corresponde.
 
 ### Estructura de datos (colección `ventas`)
 

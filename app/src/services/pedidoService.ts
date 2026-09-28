@@ -1,4 +1,5 @@
-import { collection, deleteDoc, doc, onSnapshot, orderBy, query, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDocs, limit, onSnapshot, orderBy, query, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { where } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { run, type Result } from './result';
 import type { Pedido, EstadoPedido } from '@/models';
@@ -35,6 +36,44 @@ export const pedidoService = {
   remove(id: string): Promise<Result<void>> {
     return run(async () => {
       await deleteDoc(doc(db, 'pedidos', id));
+    });
+  },
+
+  /** Suscripción a pedidos pendientes. */
+  subscribePendientes(onData: (items: Pedido[]) => void, onError: (msg: string) => void): () => void {
+    const q = query(col, where('estado', 'in', ['nuevo', 'visto']));
+    return onSnapshot(
+      q,
+      (snap) => onData(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Pedido, 'id'>) }))),
+      (err) => {
+        console.error('[pedidoService.subscribePendientes]', err);
+        onError('No se pudo actualizar el contador de consultas pendientes.');
+      },
+    );
+  },
+
+  subscribeEstado(filtro: 'pendientes' | 'atendidos', onData: (items: Pedido[]) => void, onError: (msg: string) => void): () => void {
+    const q = filtro === 'pendientes'
+      ? query(col, where('estado', 'in', ['nuevo', 'visto']))
+      : query(col, where('estado', '==', 'atendido'));
+    return onSnapshot(
+      q,
+      (snap) => {
+        const items = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Pedido, 'id'>) }));
+        items.sort((a, b) => b.creado.toMillis() - a.creado.toMillis());
+        onData(items);
+      },
+      (err) => {
+        console.error('[pedidoService.subscribeEstado]', err);
+        onError('No se pudieron cargar las notificaciones.');
+      },
+    );
+  },
+
+  async getRecent(pageSize = 50): Promise<Result<Pedido[]>> {
+    return run(async () => {
+      const snap = await getDocs(query(col, orderBy('creado', 'desc'), limit(Math.max(1, Math.min(pageSize, 100)))));
+      return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Pedido, 'id'>) }));
     });
   },
 };

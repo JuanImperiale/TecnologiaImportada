@@ -3,13 +3,16 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDocs,
   onSnapshot,
   orderBy,
   query,
   Timestamp,
+  where,
   updateDoc,
 } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
+import { monthDateRange } from '@/lib/utils';
 import { run, type Result } from './result';
 import type { Gasto, CategoriaGasto } from '@/models';
 
@@ -35,6 +38,37 @@ export const gastoService = {
         onError('No se pudieron cargar los gastos.');
       },
     );
+  },
+
+  subscribeMonth(ym: string, onData: (items: Gasto[]) => void, onError: (msg: string) => void): () => void {
+    const { start, end } = monthDateRange(ym);
+    const q = query(
+      col,
+      where('fecha', '>=', Timestamp.fromDate(start)),
+      where('fecha', '<', Timestamp.fromDate(end)),
+      orderBy('fecha', 'desc'),
+    );
+    return onSnapshot(
+      q,
+      (snap) => onData(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Gasto, 'id'>) }))),
+      (err) => {
+        console.error('[gastoService.subscribeMonth]', err);
+        onError('No se pudieron cargar los gastos del mes.');
+      },
+    );
+  },
+
+  async getByMonth(ym: string): Promise<Result<Gasto[]>> {
+    return run(async () => {
+      const { start, end } = monthDateRange(ym);
+      const snap = await getDocs(query(
+        col,
+        where('fecha', '>=', Timestamp.fromDate(start)),
+        where('fecha', '<', Timestamp.fromDate(end)),
+        orderBy('fecha', 'desc'),
+      ));
+      return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Gasto, 'id'>) }));
+    });
   },
 
   create(input: GastoInput): Promise<Result<string>> {

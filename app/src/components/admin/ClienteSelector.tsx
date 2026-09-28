@@ -1,11 +1,12 @@
 import { useMemo, useState, useEffect } from 'react';
 import { Search, Plus, X } from 'lucide-react';
-import { usePedidos } from '@/hooks/usePedidos';
-import { useVentas } from '@/hooks/useVentas';
+import { pedidoService } from '@/services/pedidoService';
+import { saleService } from '@/services/saleService';
 import { contactoAdminService } from '@/services/contactoAdminService';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import type { Pedido, Venta } from '@/models';
 
 interface Contacto {
   celular: string;
@@ -19,14 +20,26 @@ interface ClienteSelectorProps {
 }
 
 export function ClienteSelector({ cliente, onChange }: ClienteSelectorProps) {
-  const { pedidos } = usePedidos();
-  const { ventas } = useVentas();
+  const [pedidosRecientes, setPedidosRecientes] = useState<Pedido[]>([]);
+  const [ventasRecientes, setVentasRecientes] = useState<Venta[]>([]);
   const [busqueda, setBusqueda] = useState('');
   const [showNew, setShowNew] = useState(false);
   const [nuevoNombre, setNuevoNombre] = useState('');
   const [nuevoCelular, setNuevoCelular] = useState('');
   const [customNames, setCustomNames] = useState<Map<string, string>>(new Map());
   const [contactosEliminados, setContactosEliminados] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    let active = true;
+    Promise.all([pedidoService.getRecent(50), saleService.getRecent(50)]).then(([pedidos, ventas]) => {
+      if (!active) return;
+      setPedidosRecientes(pedidos.ok ? pedidos.data : []);
+      setVentasRecientes(ventas.ok ? ventas.data : []);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // Cargar ediciones y eliminaciones guardadas de Firestore al montar
   useEffect(() => {
@@ -61,8 +74,8 @@ export function ClienteSelector({ cliente, onChange }: ClienteSelectorProps) {
       if (nombre && !c.nombre) c.nombre = nombre;
       map.set(key, c);
     };
-    pedidos.forEach((p) => add(p.nombre, p.celular));
-    ventas.forEach((v) => v.cliente?.celular && add(v.cliente.nombre ?? '', v.cliente.celular));
+    pedidosRecientes.forEach((p) => add(p.nombre, p.celular));
+    ventasRecientes.forEach((v) => v.cliente?.celular && add(v.cliente.nombre ?? '', v.cliente.celular));
     
     // Aplicar nombres editados y filtrar eliminados
     const contactosConEdiciones = [...map.values()]
@@ -74,7 +87,7 @@ export function ClienteSelector({ cliente, onChange }: ClienteSelectorProps) {
       .sort((a, b) => a.nombre.localeCompare(b.nombre));
     
     return contactosConEdiciones;
-  }, [pedidos, ventas, customNames, contactosEliminados]);
+  }, [pedidosRecientes, ventasRecientes, customNames, contactosEliminados]);
 
   const candidatos = useMemo(() => {
     const term = busqueda.trim().toLowerCase();
@@ -134,6 +147,10 @@ export function ClienteSelector({ cliente, onChange }: ClienteSelectorProps) {
           className="pl-9"
         />
       </div>
+
+      {busqueda.trim() && candidatos.length === 0 && (
+        <p className="text-xs text-text-soft">No aparece entre los 50 registros recientes de cada tipo. Podés cargarlo manualmente.</p>
+      )}
 
       {/* Sugerencias */}
       {busqueda.trim() && candidatos.length > 0 ? (

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { MessageCircle, Check, X, RotateCcw, Clock, Receipt, Trash2 } from 'lucide-react';
@@ -30,8 +30,8 @@ function fecha(p: Pedido): string {
 
 export function NotificacionesPage() {
   const navigate = useNavigate();
-  const { pedidos, loading, error } = usePedidos();
   const [filtro, setFiltro] = useState<Filtro>('pendientes');
+  const { pedidos, loading, error } = usePedidos(filtro);
   const [dia, setDia] = useState('');
   const [customNames, setCustomNames] = useState<Map<string, string>>(new Map());
   const [toDelete, setToDelete] = useState<Pedido | null>(null);
@@ -87,14 +87,14 @@ export function NotificacionesPage() {
     return byFiltro.filter((p) => formatDate(toDate(p.creado), 'YYYY-MM-DD') === dia);
   }, [pedidos, filtro, dia]);
 
-  const nombreMostrado = (p: Pedido): string => {
+  const nombreMostrado = useCallback((p: Pedido): string => {
     const key = (p.contactoId ?? p.celular ?? '').replace(/\D/g, '');
     return canonicalByPhone.get(key) ?? p.nombre;
-  };
+  }, [canonicalByPhone]);
 
   const listaConNombre = useMemo(
     () => lista.map((p) => ({ ...p, nombreMostrado: nombreMostrado(p) })),
-    [lista, canonicalByPhone],
+    [lista, nombreMostrado],
   );
 
   const responderWhatsapp = (p: Pedido) => {

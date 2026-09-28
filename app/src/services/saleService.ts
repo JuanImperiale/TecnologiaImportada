@@ -1,20 +1,39 @@
 import {
   collection,
+  DocumentData,
   doc,
+  getDocs,
   getDoc,
+  limit,
   onSnapshot,
   orderBy,
   query,
   runTransaction,
   serverTimestamp,
+  startAfter,
+  Timestamp,
   updateDoc,
+  where,
+  type QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
-import { baseDescuentoEfectivo, calcDescuento } from '@/lib/utils';
+import { baseDescuentoEfectivo, calcDescuento, monthDateRange } from '@/lib/utils';
 import { run, ok, fail, type Result } from './result';
 import type { Venta, ItemVenta, Negocio, CanalVenta, Envio, PagoVenta } from '@/models';
 
 const col = collection(db, 'ventas');
+
+export type VentaCursor = QueryDocumentSnapshot<DocumentData>;
+
+export interface VentaPage {
+  ventas: Venta[];
+  cursor: VentaCursor | null;
+  hasMore: boolean;
+}
+
+function mapVenta(snapshot: QueryDocumentSnapshot<DocumentData>): Venta {
+  return { id: snapshot.id, ...(snapshot.data() as Omit<Venta, 'id'>) };
+}
 
 export interface NuevaVentaInput {
   items: ItemVenta[];
@@ -45,6 +64,63 @@ export const saleService = {
         onError('No se pudieron cargar las ventas.');
       },
     );
+  },
+
+  subscribeMonth(
+    ym: string,
+    onData: (items: Venta[]) => void,
+    onError: (msg: string) => void,
+  ): () => void {
+    const { start, end } = monthDateRange(ym);
+    const q = query(
+      col,
+      where('creado', '>=', Timestamp.fromDate(start)),
+      where('creado', '<', Timestamp.fromDate(end)),
+      orderBy('creado', 'desc'),
+    );
+    return onSnapshot(
+      q,
+      (snap) => onData(snap.docs.map(mapVenta)),
+      (err) => {
+        console.error('[saleService.subscribeMonth]', err);
+        onError('No se pudieron cargar las ventas del mes.');
+      },
+    );
+  },
+
+  async getPage(pageSize = 30, cursor?: VentaCursor | null): Promise<Result<VentaPage>> {
+    return run(async () => {
+      const size = Math.max(1, Math.min(pageSize, 100));
+      const constraints = cursor
+        ? [orderBy('creado', 'desc'), startAfter(cursor), limit(size)]
+        : [orderBy('creado', 'desc'), limit(size)];
+      const snap = await getDocs(query(col, ...constraints));
+      return {
+        ventas: snap.docs.map(mapVenta),
+        cursor: snap.docs[snap.docs.length - 1] ?? null,
+        hasMore: snap.docs.length === size,
+      };
+    });
+  },
+
+  async getByMonth(ym: string): Promise<Result<Venta[]>> {
+    return run(async () => {
+      const { start, end } = monthDateRange(ym);
+      const snap = await getDocs(query(
+        col,
+        where('creado', '>=', Timestamp.fromDate(start)),
+        where('creado', '<', Timestamp.fromDate(end)),
+        orderBy('creado', 'desc'),
+      ));
+      return snap.docs.map(mapVenta);
+    });
+  },
+
+  async getRecent(pageSize = 50): Promise<Result<Venta[]>> {
+    return run(async () => {
+      const snap = await getDocs(query(col, orderBy('creado', 'desc'), limit(Math.max(1, Math.min(pageSize, 100)))));
+      return snap.docs.map(mapVenta);
+    });
   },
 
   /**

@@ -80,9 +80,9 @@ function BloqueUnidad({
 }
 
 export function BalancePage() {
-  const { ventas, loading: lv } = useVentas();
-  const { gastos, loading: lg } = useGastos();
   const [ym, setYm] = useState(monthKey(new Date()));
+  const { ventas, loading: lv } = useVentas(ym);
+  const { gastos, loading: lg } = useGastos(ym);
   const b = useMemo(() => computeBalance(ventas, gastos, ym), [ventas, gastos, ym]);
   const loading = lv || lg;
   const [year, month] = ym.split('-');

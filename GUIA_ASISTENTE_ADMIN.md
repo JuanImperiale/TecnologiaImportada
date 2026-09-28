@@ -2,7 +2,7 @@
 
 > **Producto:** Tecnología Importada (TI)  
 > **Audiencia:** personas autorizadas que usan el panel administrador  
-> **Versión de conocimiento:** 1.1  
+> **Versión de conocimiento:** 1.2  
 > **Fecha de verificación:** 28 de septiembre de 2026  
 > **Alcance:** guía funcional basada en la aplicación implementada y sus reglas actuales. No reemplaza asesoramiento contable, fiscal o legal.
 
@@ -143,6 +143,8 @@ Una línea marcada como bonificación se entrega sin cobrarla, pero conserva su 
 2. Elegí **Exportar**. Se incluyen todas las ventas de ese período, incluso anuladas, sin importar la búsqueda ni el filtro de estado de la lista.
 3. El CSV usa una fila por producto y repite la cabecera de venta para facilitar filtros y controles en una hoja de cálculo. Incluye cliente, línea, cantidad, moneda, precios y costos, cobro, medios, envío, estado, facturación y vínculo/historial de pagos parciales cuando proviene de una cuenta.
 4. El celular, CUIT/DNI y el nombre del vendedor son datos sensibles: guardá y compartí el archivo solo con personas autorizadas.
+
+El listado carga 30 ventas por vez. La búsqueda y los filtros se aplican sobre las páginas ya cargadas; usá **Cargar 30 ventas anteriores** para revisar registros más antiguos. El CSV no depende de las páginas cargadas: consulta todo el mes elegido al exportar.
 
 ### Pedidos de la tienda
 

@@ -30,6 +30,12 @@ Tres capas, responsabilidad única cada una:
 
 Regla de oro: un componente nunca llama a Firestore directo. Componente → hook → service → Firebase. Esto mantiene la lógica reutilizable, testeable y fácil de mover si algún día se cambia de backend.
 
+### Lecturas de Firestore
+- Las vistas históricas no deben suscribirse a colecciones completas. Usar rangos por fecha (Dashboard, Balance) o paginación por cursor (listados).
+- Reservar `onSnapshot` para datos operativos que necesitan actualización en vivo, filtrando en Firestore por estado/fecha para excluir documentos irrelevantes.
+- Exportaciones por período consultan Firestore solo al solicitarlas y limitan la lectura al período seleccionado; no deben depender de datos completos precargados en memoria.
+- Sugerencias auxiliares en formularios usan una ventana reciente y acotada; permitir ingresar manualmente un registro más antiguo que no aparezca.
+
 ## 3. Estructura de carpetas
 
 ```

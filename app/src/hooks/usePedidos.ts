@@ -3,24 +3,31 @@ import { pedidoService } from '@/services/pedidoService';
 import type { Pedido } from '@/models';
 
 /** Suscribe en vivo a las consultas (pedidos) y calcula los pendientes. */
-export function usePedidos() {
+export function usePedidos(filtro?: 'pendientes' | 'atendidos' | 'todos') {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsub = pedidoService.subscribe(
-      (items) => {
-        setPedidos(items);
-        setLoading(false);
-      },
-      (msg) => {
-        setError(msg);
-        setLoading(false);
-      },
+    setLoading(true);
+    setError(null);
+    const onData = (items: Pedido[]) => {
+      setPedidos(items);
+      setLoading(false);
+      setError(null);
+    };
+    const onError = (msg: string) => {
+      setError(msg);
+      setLoading(false);
+    };
+    const unsub = filtro && filtro !== 'todos'
+      ? pedidoService.subscribeEstado(filtro, onData, onError)
+      : pedidoService.subscribe(
+        onData,
+        onError,
     );
     return unsub;
-  }, []);
+  }, [filtro]);
 
   // Pendientes = no atendidos ni descartados
   const pendientes = useMemo(
@@ -29,4 +36,13 @@ export function usePedidos() {
   );
 
   return { pedidos, pendientes, loading, error };
+}
+
+/** Mantiene actualizado solo el conteo de consultas que requieren atención. */
+export function usePedidosPendientes(): number {
+  const [pendientes, setPendientes] = useState(0);
+
+  useEffect(() => pedidoService.subscribePendientes((items) => setPendientes(items.length), () => {}), []);
+
+  return pendientes;
 }

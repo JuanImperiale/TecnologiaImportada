@@ -32,8 +32,8 @@ function prevMonth(ym: string) {
 }
 
 export function GastosPage() {
-  const { gastos, loading, error } = useGastos();
   const [ym, setYm] = useState(monthKey(new Date()));
+  const { gastos, loading, error } = useGastos(ym);
 
   const [concepto, setConcepto] = useState('');
   const [categoria, setCategoria] = useState<CategoriaGasto>('servicios');
@@ -72,7 +72,12 @@ export function GastosPage() {
 
   const clonarRecurrentes = async () => {
     const prev = prevMonth(ym);
-    const recurrentesPrev = gastos.filter((g) => g.recurrente && monthKey(g.fecha) === prev);
+    const respuestaPrevios = await gastoService.getByMonth(prev);
+    if (!respuestaPrevios.ok) {
+      toast.error(respuestaPrevios.error.message);
+      return;
+    }
+    const recurrentesPrev = respuestaPrevios.data.filter((g) => g.recurrente);
     const conceptosActuales = new Set(gastosMes.map((g) => g.concepto.toLowerCase()));
     const aClonar = recurrentesPrev.filter((g) => !conceptosActuales.has(g.concepto.toLowerCase()));
     if (aClonar.length === 0) {

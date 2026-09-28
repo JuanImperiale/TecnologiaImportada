@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Search, Download, ChevronRight } from 'lucide-react';
-import { useVentas } from '@/hooks/useVentas';
+import { toast } from 'sonner';
+import { Plus, Search, Download, ChevronRight, RefreshCw } from 'lucide-react';
+import { saleService, type VentaCursor } from '@/services/saleService';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
@@ -36,11 +37,37 @@ const MESES = [
 ];
 
 export function VentasPage() {
-  const { ventas, loading, error } = useVentas();
+  const [ventas, setVentas] = useState<Venta[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [cursor, setCursor] = useState<VentaCursor | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [exportando, setExportando] = useState(false);
   const [q, setQ] = useState('');
   const [estado, setEstado] = useState<FiltroEstado>('todas');
   const [mesExportacion, setMesExportacion] = useState(() => monthKey(new Date()).slice(5));
   const [anioExportacion, setAnioExportacion] = useState(() => monthKey(new Date()).slice(0, 4));
+
+  const cargarPagina = useCallback(async (desde: VentaCursor | null, reemplazar: boolean) => {
+    if (reemplazar) setLoading(true);
+    else setLoadingMore(true);
+    const resultado = await saleService.getPage(30, desde);
+    if (resultado.ok) {
+      setVentas((actuales) => reemplazar ? resultado.data.ventas : [...actuales, ...resultado.data.ventas]);
+      setCursor(resultado.data.cursor);
+      setHasMore(resultado.data.hasMore);
+      setError(null);
+    } else {
+      setError(resultado.error.message);
+    }
+    setLoading(false);
+    setLoadingMore(false);
+  }, []);
+
+  useEffect(() => {
+    void cargarPagina(null, true);
+  }, [cargarPagina]);
 
   const lista = useMemo(() => {
     const term = q.trim().toLowerCase();
@@ -54,18 +81,27 @@ export function VentasPage() {
   }, [ventas, q, estado]);
 
   const anios = useMemo(() => {
-    const disponibles = new Set(ventas.map((venta) => monthKey(venta.creado).slice(0, 4)));
-    disponibles.add(monthKey(new Date()).slice(0, 4));
-    return [...disponibles].sort((a, b) => Number(b) - Number(a)).map((value) => ({ value, label: value }));
-  }, [ventas]);
+    const currentYear = new Date().getFullYear();
+    return Array.from({ length: currentYear - 2000 + 1 }, (_, index) => {
+      const value = String(currentYear - index);
+      return { value, label: value };
+    });
+  }, []);
   const periodoExportacion = `${anioExportacion}-${mesExportacion}`;
-  const ventasDelMes = useMemo(
-    () => ventas.filter((venta) => monthKey(venta.creado) === periodoExportacion),
-    [ventas, periodoExportacion],
-  );
 
-  const exportarCsv = () => {
-    const csv = exportarVentasCsv(ventasDelMes, periodoExportacion);
+  const exportarCsv = async () => {
+    setExportando(true);
+    const resultado = await saleService.getByMonth(periodoExportacion);
+    setExportando(false);
+    if (!resultado.ok) {
+      toast.error(resultado.error.message);
+      return;
+    }
+    if (resultado.data.length === 0) {
+      toast.message('No hay ventas en el mes seleccionado.');
+      return;
+    }
+    const csv = exportarVentasCsv(resultado.data, periodoExportacion);
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -80,6 +116,9 @@ export function VentasPage() {
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold tracking-tight">Ventas</h1>
         <div className="flex gap-2">
+          <Button variant="ghost" onClick={() => void cargarPagina(null, true)} disabled={loading}>
+            <RefreshCw size={16} aria-hidden="true" /> Actualizar
+          </Button>
           <Link to="/adm/ventas/nueva">
             <Button>
               <Plus size={16} aria-hidden="true" /> Nueva venta
@@ -103,11 +142,11 @@ export function VentasPage() {
           options={anios}
           className="min-w-[110px]"
         />
-        <Button variant="ghost" onClick={exportarCsv} disabled={ventasDelMes.length === 0}>
-          <Download size={16} aria-hidden="true" /> Exportar {ventasDelMes.length} ventas
+        <Button variant="ghost" onClick={() => void exportarCsv()} loading={exportando} disabled={exportando}>
+          <Download size={16} aria-hidden="true" /> Exportar mes seleccionado
         </Button>
         <p className="w-full text-xs text-text-soft">
-          Incluye todas las ventas del mes seleccionado, también las anuladas, sin aplicar la búsqueda ni los filtros de estado.
+          Incluye todas las ventas del mes, también las anuladas, sin depender de las páginas ni de los filtros visibles.
         </p>
       </div>
 
@@ -136,7 +175,7 @@ export function VentasPage() {
       ) : error ? (
         <EmptyState title="Error" description={error} />
       ) : lista.length === 0 ? (
-        <EmptyState title="Sin ventas" description="Registrá tu primera venta con “Nueva venta”." />
+        <EmptyState title={ventas.length === 0 ? 'Sin ventas recientes' : 'Sin coincidencias en esta página'} description={ventas.length === 0 ? 'Registrá tu primera venta con “Nueva venta”.' : 'Probá otro filtro o cargá páginas anteriores.'} />
       ) : (
         <div className="flex flex-col gap-2">
           {lista.map((v) => (
@@ -171,6 +210,15 @@ export function VentasPage() {
               </Card>
             </Link>
           ))}
+        </div>
+      )}
+
+      {!loading && !error && hasMore && (
+        <div className="mt-4 flex flex-col items-center gap-2">
+          <p className="text-xs text-text-soft">Mostrando búsqueda y filtros sobre las {ventas.length} ventas cargadas.</p>
+          <Button variant="ghost" onClick={() => void cargarPagina(cursor, false)} loading={loadingMore} disabled={loadingMore}>
+            Cargar 30 ventas anteriores
+          </Button>
         </div>
       )}
     </div>

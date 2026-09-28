@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { baseDescuentoEfectivo, calcDescuento, chunk, matchesSearch, PUBLIC_SITE_URL, productPublicUrl } from './utils';
+import { baseDescuentoEfectivo, calcDescuento, chunk, matchesSearch, monthDateRange, PUBLIC_SITE_URL, productPublicUrl } from './utils';
 
 describe('baseDescuentoEfectivo', () => {
   const it_ = (negocio: string, moneda: string, precioUnitario: number, cantidad = 1, tipo = 'venta') => ({
@@ -69,6 +69,18 @@ describe('chunk', () => {
   it('keeps 30 labels per page', () => {
     const pages = chunk(Array.from({ length: 61 }, (_, i) => i), 30);
     expect(pages.map((p) => p.length)).toEqual([30, 30, 1]);
+  });
+});
+
+describe('monthDateRange', () => {
+  it('returns a local half-open range and rolls December into the next year', () => {
+    const { start, end } = monthDateRange('2025-12');
+    expect(start.getFullYear()).toBe(2025);
+    expect(start.getMonth()).toBe(11);
+    expect(start.getDate()).toBe(1);
+    expect(end.getFullYear()).toBe(2026);
+    expect(end.getMonth()).toBe(0);
+    expect(end.getDate()).toBe(1);
   });
 });
 

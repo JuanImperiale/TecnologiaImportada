@@ -20,7 +20,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { usePedidos } from '@/hooks/usePedidos';
+import { usePedidosPendientes } from '@/hooks/usePedidos';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { cn } from '@/lib/utils';
 
@@ -125,7 +125,7 @@ function SidebarContent({
 export function AdminLayout() {
   const [drawer, setDrawer] = useState(false);
   const { user, logout } = useAuth();
-  const { pendientes } = usePedidos();
+  const pendientes = usePedidosPendientes();
 
   usePageMeta({ robots: 'noindex,nofollow', title: 'Admin | Tecnologia Importada' });
 
@@ -187,7 +187,7 @@ export function AdminLayout() {
           </div>
         </header>
         <main className="flex-1 overflow-y-auto p-5 md:p-7">
-          <Outlet />
+          <Outlet context={{ pendientes }} />
         </main>
       </div>
     </div>

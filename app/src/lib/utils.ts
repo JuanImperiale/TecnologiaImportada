@@ -54,6 +54,15 @@ export function monthKey(value: unknown): string {
   return dayjs(toDate(value)).format('YYYY-MM');
 }
 
+/** Rango local semiabierto [inicio, fin) para consultar un mes en Firestore. */
+export function monthDateRange(ym: string): { start: Date; end: Date } {
+  const [year, month] = ym.split('-').map(Number);
+  return {
+    start: new Date(year, month - 1, 1),
+    end: new Date(year, month, 1),
+  };
+}
+
 /**
  * Devuelve una imagen de Cloudinary recortada a cuadrado y optimizada, para que
  * todas las imágenes se muestren con la misma resolución. Si la URL no es de

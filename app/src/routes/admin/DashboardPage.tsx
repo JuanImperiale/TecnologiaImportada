@@ -1,8 +1,7 @@
 import { useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useOutletContext } from 'react-router-dom';
 import { Bell, AlertTriangle, Receipt, TrendingUp } from 'lucide-react';
 import { useVentas } from '@/hooks/useVentas';
-import { usePedidos } from '@/hooks/usePedidos';
 import { useCatalog } from '@/hooks/useCatalog';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Spinner } from '@/components/ui/Spinner';
@@ -20,11 +19,11 @@ function Metric({ label, value, hint }: { label: string; value: string; hint?: s
 }
 
 export function DashboardPage() {
-  const { ventas, loading: lv } = useVentas();
-  const { pedidos, pendientes } = usePedidos();
+  const ym = monthKey(new Date());
+  const { pendientes } = useOutletContext<{ pendientes: number }>();
+  const { ventas, loading: lv } = useVentas(ym);
   const { all, loading: lp } = useCatalog();
 
-  const ym = monthKey(new Date());
   const hoy = formatDate(new Date(), 'YYYY-MM-DD');
 
   const data = useMemo(() => {
@@ -59,7 +58,7 @@ export function DashboardPage() {
         <Metric label="Ventas del mes" value={String(data.mes.length)} hint={`${data.hoyVentas.length} hoy`} />
         <Metric label="Facturado USD" value={formatUsd(data.totalUsd)} hint="del mes" />
         <Metric label="Facturado ARS" value={formatMoney(data.totalArs)} hint="del mes" />
-        <Metric label="Consultas pendientes" value={String(pendientes)} hint={`${pedidos.length} en total`} />
+        <Metric label="Consultas pendientes" value={String(pendientes)} hint="requieren atención" />
       </div>
 
       <div className="mt-6 grid gap-5 md:grid-cols-2">
