@@ -16,7 +16,9 @@ export default defineConfig({
             id.includes('/react-dom/') ||
             id.includes('/react-router/') ||
             id.includes('/react-router-dom/') ||
-            id.includes('/scheduler/')
+            id.includes('/scheduler/') ||
+            // Libs que importan React van acá para evitar ciclos vendor <-> react-vendor.
+            id.includes('/qrcode.react/')
           ) {
             return 'react-vendor';
           }
