@@ -143,9 +143,11 @@ export interface Venta {
   numero: number;
   negocio: Negocio | 'mixta';
   items: ItemVenta[];
-  /** Ingresos por moneda (items de tipo venta), sin conversión. */
+  /** Ingresos por moneda (items de tipo venta), sin conversión. `totalArs` ya tiene restado `descuento`. */
   totalUsd: number;
   totalArs: number;
+  /** Descuento por pago en efectivo: solo sobre accesorios en pesos (no incluye envío). */
+  descuento?: { porcentaje: number; montoArs: number };
   /** Costo por moneda (todos los items, incl. bonificaciones). */
   costoUsd: number;
   costoArs: number;
@@ -227,6 +229,8 @@ export interface Settings {
   stockMinimoDefault: number;
   cuit?: string;
   recargoTarjeta: number;
+  /** % de descuento sugerido para pagos en efectivo. */
+  descuentoEfectivo?: number;
   mediosPago: MedioPago[];
   /** Texto del hero del home (editable desde Contenido). */
   heroTitulo?: string;

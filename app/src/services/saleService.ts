@@ -10,6 +10,7 @@ import {
   updateDoc,
 } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
+import { baseDescuentoEfectivo, calcDescuento } from '@/lib/utils';
 import { run, ok, fail, type Result } from './result';
 import type { Venta, ItemVenta, Negocio, CanalVenta, Envio, PagoVenta } from '@/models';
 
@@ -22,6 +23,8 @@ export interface NuevaVentaInput {
   canal: CanalVenta;
   cliente?: { nombre?: string; celular?: string; cuitDni?: string };
   pedidoId?: string;
+  /** % de descuento por pago en efectivo sobre los items en pesos. */
+  descuentoPorcentaje?: number;
 }
 
 /** Deriva la unidad de negocio del conjunto de items. */
@@ -90,6 +93,9 @@ export const saleService = {
           }
         }
 
+        const descuentoArs = calcDescuento(baseDescuentoEfectivo(ventaItems), input.descuentoPorcentaje ?? 0);
+        totalArs -= descuentoArs;
+
         // 3) Escrituras
         const ventaRef = doc(col);
         tx.set(ventaRef, {
@@ -98,6 +104,9 @@ export const saleService = {
           items: ventaItems,
           totalUsd,
           totalArs,
+          ...(descuentoArs > 0
+            ? { descuento: { porcentaje: input.descuentoPorcentaje, montoArs: descuentoArs } }
+            : {}),
           costoUsd,
           costoArs,
           costoBonifUsd,

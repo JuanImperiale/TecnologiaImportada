@@ -21,6 +21,8 @@ export interface BalanceMes {
   usd: BloqueMoneda;
   ars: BloqueMoneda;
   envios: number; // ARS
+  /** Descuentos por pago en efectivo (ARS), ya restados de los ingresos ARS. */
+  descuentosArs: number;
   gastos: number; // ARS
   /** Resultado neto en pesos = margen ARS + envíos − gastos. */
   netaArs: number;
@@ -66,6 +68,7 @@ export function computeBalance(ventas: Venta[], gastos: Gasto[], ym: string): Ba
   const usd = vacio();
   const ars = vacio();
   let envios = 0;
+  let descuentosArs = 0;
 
   const ventasMes = ventas.filter((v) => v.estado === 'confirmada' && monthKey(v.creado) === ym);
 
@@ -109,6 +112,13 @@ export function computeBalance(ventas: Venta[], gastos: Gasto[], ym: string): Ba
         bloque.costo.productos += bonif;
       }
     });
+
+    // Descuento efectivo: solo aplica a accesorios en pesos
+    const descuento = v.descuento?.montoArs ?? 0;
+    if (descuento > 0) {
+      descuentosArs += descuento;
+      ars.ingresos.accesorios -= descuento;
+    }
   }
 
   for (const b of [usd, ars]) {
@@ -127,6 +137,7 @@ export function computeBalance(ventas: Venta[], gastos: Gasto[], ym: string): Ba
     usd,
     ars,
     envios,
+    descuentosArs,
     gastos: gastosTotal,
     netaArs: ars.margen.total + envios - gastosTotal,
     netaUsd: usd.margen.total,

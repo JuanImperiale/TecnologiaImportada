@@ -131,6 +131,12 @@ export function VentaDetailPage() {
             </table>
             <div className="flex flex-col gap-1 text-sm text-text-soft">
               {venta.totalUsd > 0 && <Row label="Total en dólares" value={formatUsd(venta.totalUsd)} />}
+              {venta.descuento && venta.descuento.montoArs > 0 && (
+                <>
+                  <Row label="Subtotal en pesos" value={formatMoney(venta.totalArs + venta.descuento.montoArs)} />
+                  <Row label={`Descuento pago en efectivo (${venta.descuento.porcentaje}%)`} value={`−${formatMoney(venta.descuento.montoArs)}`} />
+                </>
+              )}
               {(venta.totalArs > 0 || (venta.envio?.costo ?? 0) > 0) && (
                 <Row label={`Total en pesos${(venta.envio?.costo ?? 0) > 0 ? ' (con envío)' : ''}`} value={formatMoney(venta.totalArs + (venta.envio?.costo ?? 0))} />
               )}

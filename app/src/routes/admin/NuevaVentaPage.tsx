@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
 import { ClienteSelector } from '@/components/admin/ClienteSelector';
-import { cn, formatMoney, formatUsd, matchesSearch } from '@/lib/utils';
+import { baseDescuentoEfectivo, calcDescuento, cn, formatMoney, formatUsd, matchesSearch } from '@/lib/utils';
 import type { ItemVenta, MedioPago, Pedido, Producto } from '@/models';
 
 interface Linea extends ItemVenta {
@@ -40,6 +40,8 @@ export function NuevaVentaPage() {
   const [medioArs, setMedioArs] = useState<MedioPago>('efectivo');
   const [mediosPago, setMediosPago] = useState<MedioPago[]>(DEFAULT_MEDIOS_PAGO);
   const [recargoTarjeta, setRecargoTarjeta] = useState(0);
+  const [aplicarDescuento, setAplicarDescuento] = useState(false);
+  const [descuentoPct, setDescuentoPct] = useState('10');
   const [cliente, setCliente] = useState<{ nombre: string; celular: string; cuitDni?: string }>({ nombre: '', celular: '', cuitDni: '' });
   const [guardando, setGuardando] = useState(false);
 
@@ -88,6 +90,7 @@ export function NuevaVentaPage() {
       const habilitados = s.mediosPago && s.mediosPago.length > 0 ? s.mediosPago : DEFAULT_MEDIOS_PAGO;
       setMediosPago(habilitados);
       setRecargoTarjeta(Number(s.recargoTarjeta ?? 0));
+      setDescuentoPct(String(s.descuentoEfectivo ?? 10));
       setMedioArs((prev) => (habilitados.includes(prev) ? prev : habilitados[0] ?? 'efectivo'));
     });
     return () => {
@@ -122,10 +125,14 @@ export function NuevaVentaPage() {
 
   const envioCosto = metodoEnvio === 'envio' ? costoEnvio : 0;
   const tc = Number(tipoCambio) || 0;
-  const arsSiTodoEnPesos = t.totalArs + envioCosto + t.totalUsd * tc;
+  const baseDescuento = baseDescuentoEfectivo(lineas);
+  const puedeDescontar = medioArs === 'efectivo' && baseDescuento > 0;
+  const descuentoMonto = aplicarDescuento && puedeDescontar ? calcDescuento(baseDescuento, Number(descuentoPct)) : 0;
+  const totalArsNeto = t.totalArs - descuentoMonto;
+  const arsSiTodoEnPesos = totalArsNeto + envioCosto + t.totalUsd * tc;
   const recargoTarjetaMonto =
-    medioArs === 'tarjeta' ? ((t.totalArs + envioCosto) * recargoTarjeta) / 100 : 0;
-  const totalArsSugerido = t.totalArs + envioCosto + recargoTarjetaMonto;
+    medioArs === 'tarjeta' ? ((totalArsNeto + envioCosto) * recargoTarjeta) / 100 : 0;
+  const totalArsSugerido = totalArsNeto + envioCosto + recargoTarjetaMonto;
   const mediosArsDisponibles = MEDIOS_ARS.filter((medio) => mediosPago.includes(medio.value));
 
   const confirmar = async () => {
@@ -151,6 +158,7 @@ export function NuevaVentaPage() {
       canal: pedido ? 'whatsapp' : 'presencial',
       cliente: cliente.nombre || cliente.celular ? cliente : undefined,
       pedidoId: pedido?.id,
+      descuentoPorcentaje: descuentoMonto > 0 ? Number(descuentoPct) : undefined,
     });
     setGuardando(false);
     if (res.ok) {
@@ -224,7 +232,10 @@ export function NuevaVentaPage() {
             <h2 className="text-base font-bold">Cobro</h2>
             <div className="rounded-md bg-surface-2 p-3 text-sm">
               <div className="flex justify-between"><span className="text-text-soft">A cobrar en dólares</span><span className="font-bold">{formatUsd(t.totalUsd)}</span></div>
-              <div className="flex justify-between"><span className="text-text-soft">A cobrar en pesos {envioCosto > 0 ? '(con envío)' : ''}</span><span className="font-bold">{formatMoney(t.totalArs + envioCosto)}</span></div>
+              {descuentoMonto > 0 && (
+                <div className="flex justify-between"><span className="text-text-soft">Descuento efectivo {Number(descuentoPct)}%</span><span className="font-bold text-success">−{formatMoney(descuentoMonto)}</span></div>
+              )}
+              <div className="flex justify-between"><span className="text-text-soft">A cobrar en pesos {envioCosto > 0 ? '(con envío)' : ''}</span><span className="font-bold">{formatMoney(totalArsNeto + envioCosto)}</span></div>
               {recargoTarjetaMonto > 0 && (
                 <div className="flex justify-between"><span className="text-text-soft">Recargo tarjeta</span><span className="font-bold">{formatMoney(recargoTarjetaMonto)}</span></div>
               )}
@@ -248,6 +259,40 @@ export function NuevaVentaPage() {
               <Input type="number" label="Cobrado en ARS" placeholder={String(totalArsSugerido)} value={pagoArs} onChange={(e) => setPagoArs(e.target.value)} />
               <Select label="Medio (parte ARS)" options={mediosArsDisponibles} value={medioArs} onChange={(e) => setMedioArs(e.target.value as MedioPago)} />
             </div>
+            {puedeDescontar && (
+              <div className="flex flex-col gap-2 rounded-md border border-line p-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
+                    <input
+                      type="checkbox"
+                      checked={aplicarDescuento}
+                      onChange={(e) => setAplicarDescuento(e.target.checked)}
+                      className="h-4 w-4 accent-[var(--ti-accent)]"
+                    />
+                    Aplicar descuento por pago en efectivo <span className="font-normal text-text-soft">(solo accesorios en pesos)</span>
+                  </label>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={descuentoPct}
+                      disabled={!aplicarDescuento}
+                      onChange={(e) => setDescuentoPct(e.target.value)}
+                      className="h-9 w-20 rounded-md border border-line bg-surface-2 px-2 text-right text-sm disabled:opacity-50"
+                      aria-label="Porcentaje de descuento"
+                    />
+                    <span className="text-sm text-text-soft">%</span>
+                  </div>
+                </div>
+                {descuentoMonto > 0 && (
+                  <p className="text-sm text-text-soft">
+                    Descuento sobre accesorios en pesos ({formatMoney(baseDescuento)}): <span className="font-bold text-success">−{formatMoney(descuentoMonto)}</span> · Total a cobrar en pesos:{' '}
+                    <span className="font-bold text-text">{formatMoney(totalArsNeto + envioCosto)}</span>
+                  </p>
+                )}
+              </div>
+            )}
             <p className="text-sm text-text-soft">Dejá los montos vacíos para usar los totales sugeridos. El dólar se cobra en efectivo. Si elegís tarjeta, se sugiere el recargo configurado.</p>
           </CardBody>
         </Card>
@@ -267,7 +312,7 @@ export function NuevaVentaPage() {
               <div className="flex justify-between"><span className="text-text-soft">Margen en dólares</span><span className="font-bold text-success">{formatUsd(t.totalUsd - t.costoUsd)}</span></div>
             )}
             {(t.totalArs > 0 || t.costoArs > 0) && (
-              <div className="flex justify-between"><span className="text-text-soft">Margen en pesos</span><span className="font-bold text-success">{formatMoney(t.totalArs - t.costoArs)}</span></div>
+              <div className="flex justify-between"><span className="text-text-soft">Margen en pesos</span><span className="font-bold text-success">{formatMoney(totalArsNeto - t.costoArs)}</span></div>
             )}
           </CardBody>
         </Card>

@@ -30,6 +30,7 @@ export function ConfiguracionPage() {
   const [stockMinimoDefault, setStockMinimoDefault] = useState('');
   const [cuit, setCuit] = useState('');
   const [recargoTarjeta, setRecargoTarjeta] = useState('');
+  const [descuentoEfectivo, setDescuentoEfectivo] = useState('');
   const [mediosPago, setMediosPago] = useState<MedioPago[]>([]);
   const [nosotrosTitulo, setNosotrosTitulo] = useState('');
   const [nosotrosTexto, setNosotrosTexto] = useState('');
@@ -48,6 +49,7 @@ export function ConfiguracionPage() {
       setStockMinimoDefault(String(s.stockMinimoDefault ?? ''));
       setCuit(s.cuit ?? '');
       setRecargoTarjeta(String(s.recargoTarjeta ?? 0));
+      setDescuentoEfectivo(String(s.descuentoEfectivo ?? 10));
       setMediosPago(s.mediosPago ?? []);
       setNosotrosTitulo(s.nosotrosTitulo ?? '');
       setNosotrosTexto(s.nosotrosTexto ?? '');
@@ -94,6 +96,7 @@ export function ConfiguracionPage() {
       stockMinimoDefault: Number(stockMinimoDefault) || 0,
       cuit: cuit.trim(),
       recargoTarjeta: Number(recargoTarjeta) || 0,
+      descuentoEfectivo: Math.min(100, Math.max(0, Number(descuentoEfectivo) || 0)),
       mediosPago,
       nosotrosTitulo: nosotrosTitulo.trim(),
       nosotrosTexto: nosotrosTexto.trim(),
@@ -195,6 +198,19 @@ export function ConfiguracionPage() {
                 value={recargoTarjeta}
                 onChange={(e) => setRecargoTarjeta(e.target.value)}
               />
+              <div>
+                <Input
+                  label="Descuento por pago en efectivo (%)"
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={descuentoEfectivo}
+                  onChange={(e) => setDescuentoEfectivo(e.target.value)}
+                />
+                <p className="mt-1 text-sm text-text-soft">
+                  Valor sugerido al marcar el descuento en una venta en efectivo. Se puede cambiar en cada venta.
+                </p>
+              </div>
               <div className="flex flex-col gap-3 rounded-lg border border-line bg-surface-2 p-4">
                 <div>
                   <p className="text-sm font-semibold text-text">Medios de pago habilitados</p>

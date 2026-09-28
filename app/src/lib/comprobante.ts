@@ -19,8 +19,16 @@ export function printComprobante(venta: Venta, nombreNegocio: string) {
     })
     .join('');
 
+  const d = venta.descuento;
+  const descuentoFilas =
+    d && d.montoArs > 0
+      ? `<tr><td>Subtotal en pesos</td><td class="r">${formatMoney(venta.totalArs + d.montoArs)}</td></tr>` +
+        `<tr><td>Descuento pago en efectivo (${d.porcentaje}%)</td><td class="r">−${formatMoney(d.montoArs)}</td></tr>`
+      : '';
+
   const totales =
     (venta.totalUsd > 0 ? `<tr class="total"><td>Total en dólares</td><td class="r">${formatUsd(venta.totalUsd)}</td></tr>` : '') +
+    descuentoFilas +
     (venta.totalArs > 0 || venta.envio?.costo
       ? `<tr class="total"><td>Total en pesos</td><td class="r">${formatMoney(venta.totalArs + (venta.envio?.costo ?? 0))}</td></tr>`
       : '');

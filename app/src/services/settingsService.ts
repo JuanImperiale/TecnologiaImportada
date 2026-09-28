@@ -16,6 +16,7 @@ export const DEFAULT_SETTINGS: Partial<Settings> = {
   nombreNegocio: 'Tecnologia Importada',
   stockMinimoDefault: 0,
   recargoTarjeta: 0,
+  descuentoEfectivo: 10,
   mediosPago: DEFAULT_MEDIOS_PAGO,
   heroTitulo: 'Tecnologia que si se siente premium.',
   heroSubtitulo: 'Audio, carga rapida y accesorios originales. Stock real y garantia.',

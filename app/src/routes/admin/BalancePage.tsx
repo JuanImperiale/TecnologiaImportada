@@ -125,6 +125,7 @@ export function BalancePage() {
               <div className="grid grid-cols-2 gap-3">
                 <Metric label="Margen bruto" value={formatMoney(b.ars.margen.total)} />
                 <Metric label="Envíos" value={formatMoney(b.envios)} />
+                {b.descuentosArs > 0 && <Metric label="Descuentos efectivo" value={`−${formatMoney(b.descuentosArs)}`} />}
                 <Metric label="Gastos" value={formatMoney(b.gastos)} />
                 <Metric label="Ganancia neta" value={formatMoney(b.netaArs)} strong />
               </div>

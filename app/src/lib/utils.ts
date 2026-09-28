@@ -98,6 +98,22 @@ export function chunk<T>(items: T[], size: number): T[][] {
   return out;
 }
 
+/** Base del descuento en efectivo: solo accesorios vendidos con precio en pesos. */
+export function baseDescuentoEfectivo(
+  items: { negocio: string; moneda: string; tipo: string; precioUnitario: number; cantidad: number }[],
+): number {
+  return items
+    .filter((i) => i.negocio === 'accesorios' && i.moneda === 'ARS' && i.tipo === 'venta')
+    .reduce((acc, i) => acc + i.precioUnitario * i.cantidad, 0);
+}
+
+/** Monto de descuento en pesos enteros; el porcentaje se limita a 0–100. */
+export function calcDescuento(subtotal: number, porcentaje: number): number {
+  const pct = Math.min(100, Math.max(0, Number.isFinite(porcentaje) ? porcentaje : 0));
+  if (subtotal <= 0 || pct === 0) return 0;
+  return Math.round((subtotal * pct) / 100);
+}
+
 /** Pasa a minúsculas y quita acentos para comparar textos de búsqueda. */
 export function normalizeSearchText(value: string): string {
   return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
