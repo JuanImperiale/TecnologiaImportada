@@ -6,7 +6,7 @@ import { ProductCard } from '@/components/shop/ProductCard';
 import { Input } from '@/components/ui/Input';
 import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { cn, slugify } from '@/lib/utils';
+import { cn, matchesSearch, slugify } from '@/lib/utils';
 import type { Negocio } from '@/models';
 
 type Unidad = Negocio | 'todos';
@@ -20,7 +20,7 @@ function parseUnidad(value: string | null): Unidad {
 export function CatalogoPage() {
   const { slug } = useParams();
   const [params] = useSearchParams();
-  const { all, categorias, loading, error } = useCatalog();
+  const { all, categorias, catMap, loading, error } = useCatalog();
 
   const [search, setSearch] = useState(params.get('q') ?? '');
   const [unidad, setUnidad] = useState<Unidad>(() => parseUnidad(params.get('unidad')));
@@ -49,17 +49,13 @@ export function CatalogoPage() {
   };
 
   const filtered = useMemo(() => {
-    const term = search.trim().toLowerCase();
     return all.filter(
       (p) =>
         (unidad === 'todos' || p.negocio === unidad) &&
         (!categoriaId || p.categoriaId === categoriaId) &&
-        (!term ||
-          p.nombre.toLowerCase().includes(term) ||
-          (p.descripcion ?? '').toLowerCase().includes(term) ||
-          (p.categoria ?? '').toLowerCase().includes(term)),
+        matchesSearch(search, p.nombre, p.descripcion, catMap.get(p.categoriaId) ?? p.categoria),
     );
-  }, [all, unidad, categoriaId, search]);
+  }, [all, unidad, categoriaId, search, catMap]);
 
   useEffect(() => {
     setVisibleCount(16);

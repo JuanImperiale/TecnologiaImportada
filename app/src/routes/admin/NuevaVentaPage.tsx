@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
 import { ClienteSelector } from '@/components/admin/ClienteSelector';
-import { cn, formatMoney, formatUsd } from '@/lib/utils';
+import { cn, formatMoney, formatUsd, matchesSearch } from '@/lib/utils';
 import type { ItemVenta, MedioPago, Pedido, Producto } from '@/models';
 
 interface Linea extends ItemVenta {
@@ -28,7 +28,7 @@ export function NuevaVentaPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const pedido = (location.state as { pedido?: Pedido } | null)?.pedido;
-  const { all } = useCatalog();
+  const { all, catMap } = useCatalog();
 
   const [lineas, setLineas] = useState<Linea[]>([]);
   const [busqueda, setBusqueda] = useState('');
@@ -96,10 +96,13 @@ export function NuevaVentaPage() {
   }, []);
 
   const candidatos = useMemo(() => {
-    const term = busqueda.trim().toLowerCase();
-    if (!term) return [];
-    return all.filter((p) => !lineas.some((l) => l.productId === p.id) && p.nombre.toLowerCase().includes(term)).slice(0, 6);
-  }, [busqueda, all, lineas]);
+    if (!busqueda.trim()) return [];
+    return all.filter(
+      (p) =>
+        !lineas.some((l) => l.productId === p.id) &&
+        matchesSearch(busqueda, p.nombre, p.sku, catMap.get(p.categoriaId) ?? p.categoria),
+    );
+  }, [busqueda, all, lineas, catMap]);
 
   const updateLinea = (id: string, patch: Partial<Linea>) =>
     setLineas((prev) => prev.map((l) => (l.productId === id ? { ...l, ...patch } : l)));
@@ -171,7 +174,7 @@ export function NuevaVentaPage() {
               <Search size={17} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-soft" aria-hidden="true" />
               <Input placeholder="Buscar producto para agregar…" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} className="pl-9" />
               {candidatos.length > 0 && (
-                <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-md border border-line bg-surface shadow-ti">
+                <div className="absolute z-10 mt-1 max-h-80 w-full overflow-y-auto rounded-md border border-line bg-surface shadow-ti">
                   {candidatos.map((p) => (
                     <button key={p.id} type="button" onClick={() => agregar(p)} className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-surface-2">
                       <span className="truncate">{p.nombre}</span>

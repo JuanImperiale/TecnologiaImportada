@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { productService } from '@/services/productService';
 import { categoryService } from '@/services/categoryService';
+import { matchesSearch } from '@/lib/utils';
 import type { Producto, Categoria, Negocio } from '@/models';
 
 interface CatalogFilters {
@@ -67,13 +68,10 @@ export function useCatalog(filters: CatalogFilters = {}) {
     if (filters.categoriaId) {
       list = list.filter((p) => p.categoriaId === filters.categoriaId);
     }
-    const term = filters.search?.trim().toLowerCase();
+    const term = filters.search?.trim();
     if (term) {
-      list = list.filter(
-        (p) =>
-          p.nombre.toLowerCase().includes(term) ||
-          (p.descripcion ?? '').toLowerCase().includes(term) ||
-          (catMap.get(p.categoriaId) ?? p.categoria ?? '').toLowerCase().includes(term),
+      list = list.filter((p) =>
+        matchesSearch(term, p.nombre, p.descripcion, catMap.get(p.categoriaId) ?? p.categoria),
       );
     }
     return list;

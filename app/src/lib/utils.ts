@@ -80,6 +80,22 @@ export function slugify(text: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
+/** Pasa a minúsculas y quita acentos para comparar textos de búsqueda. */
+export function normalizeSearchText(value: string): string {
+  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
+/**
+ * Búsqueda por palabras: cada palabra de `query` debe estar contenida (en cualquier orden)
+ * en alguno de los campos. Sin distinguir mayúsculas ni acentos.
+ */
+export function matchesSearch(query: string, ...fields: (string | undefined | null)[]): boolean {
+  const words = normalizeSearchText(query).split(/\s+/).filter(Boolean);
+  if (words.length === 0) return true;
+  const haystack = normalizeSearchText(fields.filter(Boolean).join(' '));
+  return words.every((word) => haystack.includes(word));
+}
+
 /**
  * Extrae la URL `src` de un `<iframe>` de Google Maps ("Insertar un mapa").
  * Si el valor no contiene un iframe, lo devuelve tal cual (por si ya es un link directo).

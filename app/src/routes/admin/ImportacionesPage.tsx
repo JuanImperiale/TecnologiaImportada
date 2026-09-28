@@ -7,6 +7,7 @@ import { Card, CardBody } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { matchesSearch } from '@/lib/utils';
 import type { Producto } from '@/models';
 
 interface Linea {
@@ -22,7 +23,7 @@ function hoyISO() {
 }
 
 export function ImportacionesPage() {
-  const { all } = useCatalog();
+  const { all, catMap } = useCatalog();
   const [proveedor, setProveedor] = useState('');
   const [fecha, setFecha] = useState(hoyISO());
   const [busqueda, setBusqueda] = useState('');
@@ -30,10 +31,13 @@ export function ImportacionesPage() {
   const [guardando, setGuardando] = useState(false);
 
   const candidatos = useMemo(() => {
-    const term = busqueda.trim().toLowerCase();
-    if (!term) return [];
-    return all.filter((p) => !lineas.some((l) => l.productId === p.id) && p.nombre.toLowerCase().includes(term)).slice(0, 6);
-  }, [busqueda, all, lineas]);
+    if (!busqueda.trim()) return [];
+    return all.filter(
+      (p) =>
+        !lineas.some((l) => l.productId === p.id) &&
+        matchesSearch(busqueda, p.nombre, p.sku, catMap.get(p.categoriaId) ?? p.categoria),
+    );
+  }, [busqueda, all, lineas, catMap]);
 
   const agregar = (p: Producto) => {
     setLineas((prev) => [
@@ -83,7 +87,7 @@ export function ImportacionesPage() {
             <Search size={17} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-soft" aria-hidden="true" />
             <Input placeholder="Buscar producto…" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} className="pl-9" />
             {candidatos.length > 0 && (
-              <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-md border border-line bg-surface shadow-ti">
+              <div className="absolute z-10 mt-1 max-h-80 w-full overflow-y-auto rounded-md border border-line bg-surface shadow-ti">
                 {candidatos.map((p) => (
                   <button key={p.id} type="button" onClick={() => agregar(p)} className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-surface-2">
                     <span className="truncate">{p.nombre}</span>

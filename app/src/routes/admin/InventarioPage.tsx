@@ -14,7 +14,7 @@ import { Switch } from '@/components/ui/Switch';
 import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ConfirmDialog } from '@/components/ui/Modal';
-import { formatPrice, squareImg } from '@/lib/utils';
+import { formatPrice, matchesSearch, squareImg } from '@/lib/utils';
 import type { Negocio, Producto } from '@/models';
 
 export function InventarioPage() {
@@ -25,15 +25,11 @@ export function InventarioPage() {
   const [q, setQ] = useState('');
 
   const filtered = useMemo(() => {
-    const term = q.trim().toLowerCase();
-    if (!term) return products;
-    return products.filter(
-      (p) =>
-        p.nombre.toLowerCase().includes(term) ||
-        (p.sku ?? '').toLowerCase().includes(term) ||
-        (catMap.get(p.categoriaId) ?? p.categoria ?? '').toLowerCase().includes(term),
+    if (!q.trim()) return products;
+    return products.filter((p) =>
+      matchesSearch(q, p.nombre, p.sku, catMap.get(p.categoriaId) ?? p.categoria),
     );
-  }, [products, q]);
+  }, [products, q, catMap]);
 
   const stockBajo = products.filter((p) => p.activo && p.stock <= p.stockMinimo).length;
 
