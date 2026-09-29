@@ -1,15 +1,17 @@
-import { useMemo, useState, useEffect } from 'react';
-import { MessageCircle, Search, User, Edit2, Trash2, Check, X } from 'lucide-react';
+import { useCallback, useMemo, useState, useEffect } from 'react';
+import { MessageCircle, Search, User, Edit2, Trash2, Check, X, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
-import { usePedidos } from '@/hooks/usePedidos';
-import { useVentas } from '@/hooks/useVentas';
+import { pedidoService, type PedidoCursor } from '@/services/pedidoService';
+import { saleService, type VentaCursor } from '@/services/saleService';
 import { contactoAdminService } from '@/services/contactoAdminService';
 import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ConfirmDialog } from '@/components/ui/Modal';
 import { formatDate, toDate } from '@/lib/utils';
+import type { Pedido, Venta } from '@/models';
 
 interface Contacto {
   celular: string;
@@ -20,8 +22,15 @@ interface Contacto {
 }
 
 export function ContactosPage() {
-  const { pedidos, loading: lp } = usePedidos();
-  const { ventas, loading: lv } = useVentas();
+  const [pedidos, setPedidos] = useState<Pedido[]>([]);
+  const [ventas, setVentas] = useState<Venta[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pedidoCursor, setPedidoCursor] = useState<PedidoCursor | null>(null);
+  const [ventaCursor, setVentaCursor] = useState<VentaCursor | null>(null);
+  const [hasMorePedidos, setHasMorePedidos] = useState(false);
+  const [hasMoreVentas, setHasMoreVentas] = useState(false);
   const [q, setQ] = useState('');
   const [editingCelular, setEditingCelular] = useState<string | null>(null);
   const [editingNombre, setEditingNombre] = useState('');
@@ -30,6 +39,51 @@ export function ContactosPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [contactosEliminados, setContactosEliminados] = useState<Set<string>>(new Set());
+
+  const cargarActividad = useCallback(async (
+    cursorPedidos: PedidoCursor | null,
+    cursorVentas: VentaCursor | null,
+    reemplazar: boolean,
+    incluirPedidos = true,
+    incluirVentas = true,
+  ) => {
+    if (reemplazar) setLoading(true);
+    else setLoadingMore(true);
+    const [respuestaPedidos, respuestaVentas] = await Promise.all([
+      incluirPedidos ? pedidoService.getPage('todos', 30, cursorPedidos) : Promise.resolve(null),
+      incluirVentas ? saleService.getPage(30, cursorVentas) : Promise.resolve(null),
+    ]);
+    let mensajeError: string | null = null;
+    if (respuestaPedidos?.ok) {
+      setPedidos((actuales) => reemplazar ? respuestaPedidos.data.pedidos : [...actuales, ...respuestaPedidos.data.pedidos]);
+      setPedidoCursor(respuestaPedidos.data.cursor);
+      setHasMorePedidos(respuestaPedidos.data.hasMore);
+    } else if (respuestaPedidos) {
+      mensajeError = respuestaPedidos.error.message;
+    }
+    if (respuestaVentas?.ok) {
+      setVentas((actuales) => reemplazar ? respuestaVentas.data.ventas : [...actuales, ...respuestaVentas.data.ventas]);
+      setVentaCursor(respuestaVentas.data.cursor);
+      setHasMoreVentas(respuestaVentas.data.hasMore);
+    } else if (respuestaVentas) {
+      mensajeError ??= respuestaVentas.error.message;
+    }
+    setError(mensajeError);
+    setLoading(false);
+    setLoadingMore(false);
+  }, []);
+
+  useEffect(() => { void cargarActividad(null, null, true); }, [cargarActividad]);
+
+  const cargarMas = () => {
+    void cargarActividad(
+      hasMorePedidos ? pedidoCursor : null,
+      hasMoreVentas ? ventaCursor : null,
+      false,
+      hasMorePedidos,
+      hasMoreVentas,
+    );
+  };
 
   // Cargar ediciones y eliminaciones guardadas de Firestore al montar
   useEffect(() => {
@@ -130,17 +184,27 @@ export function ContactosPage() {
     }
   };
 
-  if (lp || lv) return <Spinner />;
+  if (loading) return <Spinner />;
 
   return (
     <div className="mx-auto max-w-2xl">
-      <h1 className="mb-4 text-2xl font-bold tracking-tight">Contactos</h1>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold tracking-tight">Contactos</h1>
+        <Button variant="ghost" size="sm" onClick={() => void cargarActividad(null, null, true)} disabled={loading}>
+          <RefreshCw size={15} aria-hidden="true" /> Actualizar
+        </Button>
+      </div>
       <div className="relative mb-4 max-w-md">
         <Search size={17} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-soft" aria-hidden="true" />
         <Input placeholder="Buscar por nombre o celular…" value={q} onChange={(e) => setQ(e.target.value)} className="pl-9" />
       </div>
+      <p className="mb-3 text-xs text-text-soft">
+        Los conteos y la búsqueda corresponden a los registros cargados. Cargá más actividad para ampliar contactos anteriores.
+      </p>
 
-      {lista.length === 0 ? (
+      {error ? (
+        <EmptyState title="Error" description={error} />
+      ) : lista.length === 0 ? (
         <EmptyState icon={<User size={36} />} title="Sin contactos" description="Se arman solos a partir de consultas y ventas." />
       ) : (
         <div className="flex flex-col gap-2">
@@ -217,6 +281,14 @@ export function ContactosPage() {
               </Card>
             );
           })}
+        </div>
+      )}
+
+      {(hasMorePedidos || hasMoreVentas) && !error && (
+        <div className="mt-4 flex justify-center">
+          <Button variant="ghost" onClick={cargarMas} loading={loadingMore} disabled={loadingMore}>
+            Cargar actividad anterior
+          </Button>
         </div>
       )}
 

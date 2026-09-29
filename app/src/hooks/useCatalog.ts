@@ -8,6 +8,7 @@ interface CatalogFilters {
   negocio?: Negocio | 'todos';
   categoriaId?: string;
   search?: string;
+  loadProducts?: boolean;
 }
 
 /**
@@ -15,45 +16,39 @@ interface CatalogFilters {
  * filtros en el cliente (unidad, categoría, búsqueda).
  */
 export function useCatalog(filters: CatalogFilters = {}) {
+  const loadProducts = filters.loadProducts ?? true;
   const [all, setAll] = useState<Producto[]>(() => productService.getCachedActive());
   const [categorias, setCategorias] = useState<Categoria[]>([]);
-  const [loading, setLoading] = useState(all.length === 0);
+  const [loading, setLoading] = useState(loadProducts && all.length === 0);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (all.length === 0) setLoading(true);
+    const unsubscribe = categoryService.subscribeAll(
+      (cats) => setCategorias(cats),
+      () => { /* categorías no bloquean la carga */ },
+    );
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
     setError(null);
-
-    if (all.length === 0) {
-      productService.getActiveFirstPage().then((res) => {
-        if (res.ok && res.data.length > 0) {
-          setAll(res.data);
-          setLoading(false);
-        }
-      });
+    if (!loadProducts) {
+      setLoading(false);
+      return;
     }
-
-    const unsubProducts = productService.subscribeActive(
+    setLoading(true);
+    return productService.subscribeActive(
       (items) => {
         setAll(items);
         setLoading(false);
+        setError(null);
       },
       (msg) => {
         setError(msg);
         setLoading(false);
       },
     );
-
-    const unsubCats = categoryService.subscribeAll(
-      (cats) => setCategorias(cats),
-      () => { /* categorías no bloquean la carga */ },
-    );
-
-    return () => {
-      unsubProducts();
-      unsubCats();
-    };
-  }, []);
+  }, [loadProducts]);
 
   const catMap = useMemo(
     () => new Map(categorias.map((c) => [c.id, c.nombre])),

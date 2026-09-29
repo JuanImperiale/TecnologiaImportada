@@ -1,13 +1,15 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { Search } from 'lucide-react';
-import { useCatalog } from '@/hooks/useCatalog';
+import { Search, RefreshCw } from 'lucide-react';
+import { productService, type ProductoCursor } from '@/services/productService';
+import { useCategories } from '@/hooks/useCategories';
 import { ProductCard } from '@/components/shop/ProductCard';
 import { Input } from '@/components/ui/Input';
 import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { Button } from '@/components/ui/Button';
 import { cn, matchesSearch, slugify } from '@/lib/utils';
-import type { Negocio } from '@/models';
+import type { Categoria, Negocio, Producto } from '@/models';
 
 type Unidad = Negocio | 'todos';
 
@@ -20,20 +22,44 @@ function parseUnidad(value: string | null): Unidad {
 export function CatalogoPage() {
   const { slug } = useParams();
   const [params] = useSearchParams();
-  const { all, categorias, catMap, loading, error } = useCatalog();
+  const { categories: productosCategorias } = useCategories('productos');
+  const { categories: accesoriosCategorias } = useCategories('accesorios');
+  const [products, setProducts] = useState<Producto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [cursor, setCursor] = useState<ProductoCursor | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const categorias = useMemo<Categoria[]>(() => [...productosCategorias, ...accesoriosCategorias], [productosCategorias, accesoriosCategorias]);
+  const catMap = useMemo(() => new Map(categorias.map((category) => [category.id, category.nombre])), [categorias]);
 
   const [search, setSearch] = useState(params.get('q') ?? '');
   const [unidad, setUnidad] = useState<Unidad>(() => parseUnidad(params.get('unidad')));
   // State holds the category document ID (empty = all)
   const [categoriaId, setCategoriaId] = useState(params.get('categoriaId') ?? '');
-  const [visibleCount, setVisibleCount] = useState(16);
 
-  // Categories visible in the current unit (only those with products)
+  const cargarPagina = useCallback(async (desde: ProductoCursor | null, reemplazar: boolean) => {
+    if (reemplazar) setLoading(true);
+    else setLoadingMore(true);
+    const resultado = await productService.getActivePage(16, desde);
+    if (resultado.ok) {
+      setProducts((actuales) => reemplazar ? resultado.data.products : [...actuales, ...resultado.data.products]);
+      setCursor(resultado.data.cursor);
+      setHasMore(resultado.data.hasMore);
+      setError(null);
+    } else {
+      setError(resultado.error.message);
+    }
+    setLoading(false);
+    setLoadingMore(false);
+  }, []);
+
+  useEffect(() => { void cargarPagina(null, true); }, [cargarPagina]);
+
+  // Categories are independent of the products loaded in the current pages.
   const categoriasUnidad = useMemo(() => {
-    const fuente = unidad === 'todos' ? all : all.filter((p) => p.negocio === unidad);
-    const usedIds = new Set(fuente.map((p) => p.categoriaId).filter(Boolean));
-    return categorias.filter((c) => usedIds.has(c.id));
-  }, [all, categorias, unidad]);
+    return unidad === 'todos' ? categorias : categorias.filter((category) => category.negocio === unidad);
+  }, [categorias, unidad]);
 
   // /categoria/:slug → resolve category ID from slug
   useEffect(() => {
@@ -49,22 +75,13 @@ export function CatalogoPage() {
   };
 
   const filtered = useMemo(() => {
-    return all.filter(
+    return products.filter(
       (p) =>
         (unidad === 'todos' || p.negocio === unidad) &&
         (!categoriaId || p.categoriaId === categoriaId) &&
         matchesSearch(search, p.nombre, p.descripcion, catMap.get(p.categoriaId) ?? p.categoria),
     );
-  }, [all, unidad, categoriaId, search, catMap]);
-
-  useEffect(() => {
-    setVisibleCount(16);
-  }, [search, unidad, categoriaId]);
-
-  const visibleProducts = useMemo(
-    () => filtered.slice(0, visibleCount),
-    [filtered, visibleCount],
-  );
+  }, [products, unidad, categoriaId, search, catMap]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -143,27 +160,24 @@ export function CatalogoPage() {
         <EmptyState title="Error" description={error} />
       ) : filtered.length === 0 ? (
         <EmptyState
-          title="Sin resultados"
-          description="No encontramos productos con esos filtros."
+          title={hasMore ? 'Sin coincidencias entre los productos cargados' : 'Sin resultados'}
+          description={hasMore ? 'Cargá más productos para ampliar la búsqueda.' : 'No encontramos productos con esos filtros.'}
         />
       ) : (
         <div className="flex flex-col gap-5">
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-            {visibleProducts.map((p) => (
+            {filtered.map((p) => (
               <ProductCard key={p.id} product={p} />
             ))}
           </div>
-          {visibleCount < filtered.length && (
-            <div className="flex justify-center">
-              <button
-                type="button"
-                onClick={() => setVisibleCount((n) => n + 16)}
-                className="rounded-pill border border-line bg-surface-2 px-5 py-2 text-sm font-bold text-text-soft transition-colors hover:text-text"
-              >
-                Cargar más productos
-              </button>
-            </div>
-          )}
+          <p className="text-center text-xs text-text-soft">Mostrando {products.length} productos cargados. Los filtros se aplican sobre las páginas cargadas.</p>
+        </div>
+      )}
+      {!loading && !error && hasMore && (
+        <div className="flex justify-center">
+          <Button variant="ghost" onClick={() => void cargarPagina(cursor, false)} loading={loadingMore} disabled={loadingMore}>
+            <RefreshCw size={15} aria-hidden="true" /> Cargar más productos
+          </Button>
         </div>
       )}
     </div>

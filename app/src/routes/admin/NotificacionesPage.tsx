@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { MessageCircle, Check, X, RotateCcw, Clock, Receipt, Trash2 } from 'lucide-react';
-import { usePedidos } from '@/hooks/usePedidos';
+import { MessageCircle, Check, X, RotateCcw, Clock, Receipt, Trash2, RefreshCw } from 'lucide-react';
 import { pedidoService } from '@/services/pedidoService';
 import { contactoAdminService } from '@/services/contactoAdminService';
 import { Card, CardBody } from '@/components/ui/Card';
@@ -13,6 +12,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ConfirmDialog } from '@/components/ui/Modal';
 import { cn, formatPrice, formatMoney, formatUsd, formatDate, toDate } from '@/lib/utils';
 import type { EstadoPedido, Pedido } from '@/models';
+import type { PedidoCursor } from '@/services/pedidoService';
 
 type Filtro = 'pendientes' | 'atendidos' | 'todos';
 
@@ -31,11 +31,34 @@ function fecha(p: Pedido): string {
 export function NotificacionesPage() {
   const navigate = useNavigate();
   const [filtro, setFiltro] = useState<Filtro>('pendientes');
-  const { pedidos, loading, error } = usePedidos(filtro);
+  const [pedidos, setPedidos] = useState<Pedido[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [cursor, setCursor] = useState<PedidoCursor | null>(null);
+  const [hasMore, setHasMore] = useState(false);
   const [dia, setDia] = useState('');
   const [customNames, setCustomNames] = useState<Map<string, string>>(new Map());
   const [toDelete, setToDelete] = useState<Pedido | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  const cargarPagina = useCallback(async (estado: Filtro, desde: PedidoCursor | null, reemplazar: boolean) => {
+    if (reemplazar) setLoading(true);
+    else setLoadingMore(true);
+    const resultado = await pedidoService.getPage(estado, 30, desde);
+    if (resultado.ok) {
+      setPedidos((actuales) => reemplazar ? resultado.data.pedidos : [...actuales, ...resultado.data.pedidos]);
+      setCursor(resultado.data.cursor);
+      setHasMore(resultado.data.hasMore);
+      setError(null);
+    } else {
+      setError(resultado.error.message);
+    }
+    setLoading(false);
+    setLoadingMore(false);
+  }, []);
+
+  useEffect(() => { void cargarPagina(filtro, null, true); }, [filtro, cargarPagina]);
 
   useEffect(() => {
     const cargarEdiciones = async () => {
@@ -74,18 +97,9 @@ export function NotificacionesPage() {
   }, [pedidos, customNames]);
 
   const lista = useMemo(() => {
-    const byFiltro = (() => {
-      if (filtro === 'pendientes') {
-        return pedidos.filter((p) => p.estado !== 'atendido' && p.estado !== 'descartado');
-      }
-      if (filtro === 'atendidos') return pedidos.filter((p) => p.estado === 'atendido');
-      return pedidos;
-    })();
-
-    if (!dia) return byFiltro;
-
-    return byFiltro.filter((p) => formatDate(toDate(p.creado), 'YYYY-MM-DD') === dia);
-  }, [pedidos, filtro, dia]);
+    if (!dia) return pedidos;
+    return pedidos.filter((p) => formatDate(toDate(p.creado), 'YYYY-MM-DD') === dia);
+  }, [pedidos, dia]);
 
   const nombreMostrado = useCallback((p: Pedido): string => {
     const key = (p.contactoId ?? p.celular ?? '').replace(/\D/g, '');
@@ -111,7 +125,15 @@ export function NotificacionesPage() {
   const cambiarEstado = async (p: Pedido, estado: EstadoPedido) => {
     const res = await pedidoService.setEstado(p.id, estado);
     if (!res.ok) toast.error(res.error.message);
-    else toast.success('Actualizado.');
+    else {
+      toast.success('Actualizado.');
+      const sigueEnFiltro = filtro === 'todos' ||
+        (filtro === 'pendientes' && (estado === 'nuevo' || estado === 'visto')) ||
+        (filtro === 'atendidos' && estado === 'atendido');
+      setPedidos((actuales) => sigueEnFiltro
+        ? actuales.map((pedido) => pedido.id === p.id ? { ...pedido, estado } : pedido)
+        : actuales.filter((pedido) => pedido.id !== p.id));
+    }
   };
 
   const eliminarPedido = async () => {
@@ -121,6 +143,7 @@ export function NotificacionesPage() {
     setDeleting(false);
 
     if (res.ok) {
+      setPedidos((actuales) => actuales.filter((pedido) => pedido.id !== toDelete.id));
       setToDelete(null);
       toast.success('Pedido eliminado.');
     } else {
@@ -130,7 +153,12 @@ export function NotificacionesPage() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <h1 className="mb-4 text-2xl font-bold tracking-tight">Notificaciones</h1>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold tracking-tight">Notificaciones</h1>
+        <Button variant="ghost" size="sm" onClick={() => void cargarPagina(filtro, null, true)} disabled={loading}>
+          <RefreshCw size={15} aria-hidden="true" /> Actualizar
+        </Button>
+      </div>
 
       <div className="mb-5 flex gap-2">
         {(['pendientes', 'atendidos', 'todos'] as Filtro[]).map((f) => (
@@ -159,6 +187,9 @@ export function NotificacionesPage() {
           aria-label="Filtrar pedidos por día"
         />
       </div>
+      <p className="mb-3 text-xs text-text-soft">
+        Mostrando hasta {pedidos.length} consultas cargadas. El filtro de fecha se aplica sobre estas páginas.
+      </p>
 
       {loading ? (
         <Spinner />
@@ -237,6 +268,14 @@ export function NotificacionesPage() {
               </Card>
             );
           })}
+        </div>
+      )}
+
+      {!loading && !error && hasMore && (
+        <div className="mt-4 flex justify-center">
+          <Button variant="ghost" onClick={() => void cargarPagina(filtro, cursor, false)} loading={loadingMore} disabled={loadingMore}>
+            <RefreshCw size={15} aria-hidden="true" /> Cargar 30 consultas anteriores
+          </Button>
         </div>
       )}
 

@@ -1,12 +1,11 @@
 import { useMemo, useState, useEffect } from 'react';
 import { Search, Plus, X } from 'lucide-react';
-import { pedidoService } from '@/services/pedidoService';
-import { saleService } from '@/services/saleService';
+import { usePedidos } from '@/hooks/usePedidos';
+import { useVentas } from '@/hooks/useVentas';
 import { contactoAdminService } from '@/services/contactoAdminService';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import type { Pedido, Venta } from '@/models';
 
 interface Contacto {
   celular: string;
@@ -20,32 +19,24 @@ interface ClienteSelectorProps {
 }
 
 export function ClienteSelector({ cliente, onChange }: ClienteSelectorProps) {
-  const [pedidosRecientes, setPedidosRecientes] = useState<Pedido[]>([]);
-  const [ventasRecientes, setVentasRecientes] = useState<Venta[]>([]);
   const [busqueda, setBusqueda] = useState('');
   const [showNew, setShowNew] = useState(false);
   const [nuevoNombre, setNuevoNombre] = useState('');
   const [nuevoCelular, setNuevoCelular] = useState('');
   const [customNames, setCustomNames] = useState<Map<string, string>>(new Map());
   const [contactosEliminados, setContactosEliminados] = useState<Set<string>>(new Set());
+  const [cargarHistorial, setCargarHistorial] = useState(false);
+  const [edicionesCargadas, setEdicionesCargadas] = useState(false);
+  const { pedidos, loading: loadingPedidos } = usePedidos(cargarHistorial);
+  const { ventas, loading: loadingVentas } = useVentas(undefined, cargarHistorial);
 
+  // Cargar ediciones solo al usar la búsqueda de contactos.
   useEffect(() => {
+    if (!cargarHistorial || edicionesCargadas) return;
     let active = true;
-    Promise.all([pedidoService.getRecent(50), saleService.getRecent(50)]).then(([pedidos, ventas]) => {
-      if (!active) return;
-      setPedidosRecientes(pedidos.ok ? pedidos.data : []);
-      setVentasRecientes(ventas.ok ? ventas.data : []);
-    });
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  // Cargar ediciones y eliminaciones guardadas de Firestore al montar
-  useEffect(() => {
     const cargarEdiciones = async () => {
       const res = await contactoAdminService.getAllEdiciones();
-      if (res.ok) {
+      if (active && res.ok) {
         const nombres = new Map<string, string>();
         const eliminados = new Set<string>();
         
@@ -60,10 +51,12 @@ export function ClienteSelector({ cliente, onChange }: ClienteSelectorProps) {
         setCustomNames(nombres);
         setContactosEliminados(eliminados);
       }
+      if (active) setEdicionesCargadas(true);
     };
-    
-    cargarEdiciones();
-  }, []);
+
+    void cargarEdiciones();
+    return () => { active = false; };
+  }, [cargarHistorial, edicionesCargadas]);
 
   const contactos = useMemo(() => {
     const map = new Map<string, Contacto>();
@@ -74,8 +67,8 @@ export function ClienteSelector({ cliente, onChange }: ClienteSelectorProps) {
       if (nombre && !c.nombre) c.nombre = nombre;
       map.set(key, c);
     };
-    pedidosRecientes.forEach((p) => add(p.nombre, p.celular));
-    ventasRecientes.forEach((v) => v.cliente?.celular && add(v.cliente.nombre ?? '', v.cliente.celular));
+    pedidos.forEach((p) => add(p.nombre, p.celular));
+    ventas.forEach((v) => v.cliente?.celular && add(v.cliente.nombre ?? '', v.cliente.celular));
     
     // Aplicar nombres editados y filtrar eliminados
     const contactosConEdiciones = [...map.values()]
@@ -87,17 +80,18 @@ export function ClienteSelector({ cliente, onChange }: ClienteSelectorProps) {
       .sort((a, b) => a.nombre.localeCompare(b.nombre));
     
     return contactosConEdiciones;
-  }, [pedidosRecientes, ventasRecientes, customNames, contactosEliminados]);
+  }, [pedidos, ventas, customNames, contactosEliminados]);
 
   const candidatos = useMemo(() => {
     const term = busqueda.trim().toLowerCase();
     if (!term) return [];
-    return contactos.filter((c) => c.nombre.toLowerCase().includes(term) || c.celular.includes(term)).slice(0, 8);
+    return contactos.filter((c) => c.nombre.toLowerCase().includes(term) || c.celular.includes(term));
   }, [busqueda, contactos]);
 
   const onSelectContacto = (contacto: Contacto) => {
     onChange(contacto);
     setBusqueda('');
+    setCargarHistorial(false);
   };
 
   const onNuevoContacto = () => {
@@ -110,11 +104,13 @@ export function ClienteSelector({ cliente, onChange }: ClienteSelectorProps) {
     setNuevoCelular('');
     setShowNew(false);
     setBusqueda('');
+    setCargarHistorial(false);
   };
 
   const onLimpiar = () => {
     onChange({ nombre: '', celular: '' });
     setBusqueda('');
+    setCargarHistorial(false);
   };
 
   return (
@@ -143,13 +139,19 @@ export function ClienteSelector({ cliente, onChange }: ClienteSelectorProps) {
         <Input
           placeholder="Buscar contacto por nombre o celular…"
           value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
+          onChange={(e) => {
+            setBusqueda(e.target.value);
+            setCargarHistorial(Boolean(e.target.value.trim()));
+          }}
           className="pl-9"
         />
       </div>
 
-      {busqueda.trim() && candidatos.length === 0 && (
-        <p className="text-xs text-text-soft">No aparece entre los 50 registros recientes de cada tipo. Podés cargarlo manualmente.</p>
+      {busqueda.trim() && (loadingPedidos || loadingVentas) && candidatos.length === 0 && (
+        <p className="text-xs text-text-soft">Buscando en los contactos registrados…</p>
+      )}
+      {busqueda.trim() && !loadingPedidos && !loadingVentas && candidatos.length === 0 && (
+        <p className="text-xs text-text-soft">No hay coincidencias. Podés cargar el contacto manualmente.</p>
       )}
 
       {/* Sugerencias */}

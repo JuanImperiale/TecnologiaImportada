@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
-import { Printer, QrCode, Search } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Printer, QrCode, Search, RefreshCw } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
-import { useCatalog } from '@/hooks/useCatalog';
+import { productService, type ProductoCursor } from '@/services/productService';
+import { useCategories } from '@/hooks/useCategories';
 import { QR_LABELS_PER_PAGE } from '@/components/admin/QrLabelSheet';
 import { useQrPrint } from '@/hooks/useQrPrint';
 import { UnitTabs } from '@/components/admin/UnitTabs';
@@ -12,21 +13,48 @@ import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { matchesSearch, productPublicUrl } from '@/lib/utils';
-import type { Negocio } from '@/models';
+import type { Categoria, Negocio, Producto } from '@/models';
 
 /** Etiquetas QR por producto para imprimir y pegar en el local. Solo productos activos. */
 export function QrInventarioPage() {
-  const { all, categorias, catMap, loading, error } = useCatalog();
+  const { categories: categoriasProductos } = useCategories('productos');
+  const { categories: categoriasAccesorios } = useCategories('accesorios');
+  const categorias = useMemo<Categoria[]>(() => [...categoriasProductos, ...categoriasAccesorios], [categoriasProductos, categoriasAccesorios]);
+  const catMap = useMemo(() => new Map(categorias.map((category) => [category.id, category.nombre])), [categorias]);
   const { print, sheet } = useQrPrint();
+  const [all, setAll] = useState<Producto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [cursor, setCursor] = useState<ProductoCursor | null>(null);
+  const [hasMore, setHasMore] = useState(false);
   const [negocio, setNegocio] = useState<Negocio>('productos');
   const [categoriaId, setCategoriaId] = useState('');
   const [q, setQ] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [selectedItems, setSelectedItems] = useState<Map<string, Producto>>(new Map());
+
+  const cargarPagina = useCallback(async (desde: ProductoCursor | null, reemplazar: boolean) => {
+    if (reemplazar) setLoading(true);
+    else setLoadingMore(true);
+    const result = await productService.getActivePage(30, desde);
+    if (result.ok) {
+      setAll((actuales) => reemplazar ? result.data.products : [...actuales, ...result.data.products]);
+      setCursor(result.data.cursor);
+      setHasMore(result.data.hasMore);
+      setError(null);
+    } else {
+      setError(result.error.message);
+    }
+    setLoading(false);
+    setLoadingMore(false);
+  }, []);
+
+  useEffect(() => { void cargarPagina(null, true); }, [cargarPagina]);
 
   const categoriasUnidad = useMemo(() => {
-    const used = new Set(all.filter((p) => p.negocio === negocio).map((p) => p.categoriaId));
-    return categorias.filter((c) => used.has(c.id));
-  }, [all, categorias, negocio]);
+    return categorias.filter((category) => category.negocio === negocio);
+  }, [categorias, negocio]);
 
   const filtered = useMemo(
     () =>
@@ -41,16 +69,25 @@ export function QrInventarioPage() {
     [all, negocio, categoriaId, q, catMap],
   );
 
-  const toggle = (id: string) =>
+  const toggle = (id: string) => {
+    const product = all.find((item) => item.id === id);
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
+    setSelectedItems((prev) => {
+      const next = new Map(prev);
+      if (next.has(id)) next.delete(id);
+      else if (product) next.set(id, product);
+      return next;
+    });
+  };
 
   const allFilteredSelected = filtered.length > 0 && filtered.every((p) => selected.has(p.id));
   const toggleAllFiltered = () =>
+  {
     setSelected((prev) => {
       const next = new Set(prev);
       for (const p of filtered) {
@@ -59,14 +96,20 @@ export function QrInventarioPage() {
       }
       return next;
     });
+    setSelectedItems((prev) => {
+      const next = new Map(prev);
+      for (const product of filtered) {
+        if (allFilteredSelected) next.delete(product.id);
+        else next.set(product.id, product);
+      }
+      return next;
+    });
+  }
 
-  // La selección se conserva entre unidades/filtros; se imprime en orden alfabético.
+  // Keep item snapshots so selection survives paging, filters, and refreshes.
   const selectedProducts = useMemo(
-    () =>
-      all
-        .filter((p) => selected.has(p.id))
-        .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
-    [all, selected],
+    () => [...selectedItems.values()].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
+    [selectedItems],
   );
   const hojas = Math.ceil(selectedProducts.length / QR_LABELS_PER_PAGE);
 
@@ -85,7 +128,12 @@ export function QrInventarioPage() {
             pública del producto con su precio actualizado.
           </p>
         </div>
-        <UnitTabs value={negocio} onChange={cambiarUnidad} />
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={() => void cargarPagina(null, true)} disabled={loading}>
+            <RefreshCw size={15} aria-hidden="true" /> Actualizar
+          </Button>
+          <UnitTabs value={negocio} onChange={cambiarUnidad} />
+        </div>
       </div>
 
       <div className="mb-4 grid gap-3 sm:grid-cols-[1fr_240px]">
@@ -113,10 +161,10 @@ export function QrInventarioPage() {
 
       <div className="sticky top-0 z-10 mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-line bg-surface p-3 shadow-ti">
         <Button variant="ghost" size="sm" onClick={toggleAllFiltered} disabled={filtered.length === 0}>
-          {allFilteredSelected ? 'Quitar los filtrados' : `Seleccionar los ${filtered.length} filtrados`}
+          {allFilteredSelected ? 'Quitar selección visible' : `Seleccionar los ${filtered.length} visibles`}
         </Button>
         {selected.size > 0 && (
-          <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
+          <Button variant="ghost" size="sm" onClick={() => { setSelected(new Set()); setSelectedItems(new Map()); }}>
             Limpiar selección
           </Button>
         )}
@@ -133,6 +181,7 @@ export function QrInventarioPage() {
           <Printer size={16} aria-hidden="true" /> Imprimir seleccionados
         </Button>
       </div>
+      <p className="mb-3 text-xs text-text-soft">La búsqueda y selección se aplican a los productos cargados. Conservamos la selección al cambiar de página o unidad.</p>
 
       {loading ? (
         <Spinner />
@@ -141,8 +190,8 @@ export function QrInventarioPage() {
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={<QrCode size={32} />}
-          title="Sin productos"
-          description={q || categoriaId ? 'Probá con otra búsqueda o categoría.' : 'No hay productos activos en esta unidad.'}
+          title={hasMore ? 'Sin coincidencias en los productos cargados' : 'Sin productos'}
+          description={hasMore ? 'Cargá más productos para ampliar la búsqueda.' : q || categoriaId ? 'Probá con otra búsqueda o categoría.' : 'No hay productos activos en esta unidad.'}
         />
       ) : (
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -170,6 +219,14 @@ export function QrInventarioPage() {
               </Card>
             );
           })}
+        </div>
+      )}
+
+      {!loading && !error && hasMore && (
+        <div className="mt-4 flex justify-center">
+          <Button variant="ghost" onClick={() => void cargarPagina(cursor, false)} loading={loadingMore} disabled={loadingMore}>
+            <RefreshCw size={15} aria-hidden="true" /> Cargar 30 productos más
+          </Button>
         </div>
       )}
 

@@ -135,8 +135,9 @@ export function CuentasCobrarPage() {
 
 export function NuevaCuentaCobrarPage() {
   const navigate = useNavigate();
-  const { products, catMap, loading: loadingProducts } = useCatalog({ negocio: 'productos' });
   const [q, setQ] = useState('');
+  const [catalogoActivado, setCatalogoActivado] = useState(false);
+  const { products, catMap, loading: loadingProducts } = useCatalog({ negocio: 'productos', loadProducts: catalogoActivado });
   const [lineas, setLineas] = useState<LineaEdicion[]>([]);
   const [cliente, setCliente] = useState({ nombre: '', celular: '', cuitDni: '' });
   const [canal, setCanal] = useState<'presencial' | 'whatsapp'>('presencial');
@@ -192,7 +193,7 @@ export function NuevaCuentaCobrarPage() {
               label="Buscar producto"
               placeholder="Nombre, SKU o categoría"
               value={q}
-              onChange={(event) => setQ(event.target.value)}
+              onChange={(event) => { setQ(event.target.value); if (event.target.value.trim()) setCatalogoActivado(true); }}
               onKeyDown={(event) => {
                 if (event.key === 'Escape') setQ('');
                 if (event.key === 'Enter' && candidatos[0]) {

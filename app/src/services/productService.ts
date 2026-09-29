@@ -4,13 +4,18 @@ import {
   deleteDoc,
   doc,
   getDoc,
+  getDocs,
+  limit,
   onSnapshot,
+  orderBy,
   query,
   serverTimestamp,
+  startAfter,
   updateDoc,
   where,
-  limit,
-  getDocs,
+  type DocumentData,
+  type QueryConstraint,
+  type QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { run, type Result } from './result';
@@ -21,6 +26,13 @@ import type { ProductoForm } from '@/schemas';
 
 // El producto vive en una sola moneda (monedaVenta); costo y precio NO se convierten.
 export type ProductoInput = ProductoForm & { imagenes: string[] };
+export type ProductoCursor = QueryDocumentSnapshot<DocumentData>;
+
+export interface ProductoPage {
+  products: Producto[];
+  cursor: ProductoCursor | null;
+  hasMore: boolean;
+}
 
 const col = collection(db, 'products');
 export const PUBLIC_PRODUCTS_CACHE_KEY = 'ti_public_products_cache_v1';
@@ -28,6 +40,26 @@ export const PUBLIC_PRODUCTS_CACHE_KEY = 'ti_public_products_cache_v1';
 /** Quita claves con valor undefined (Firestore no las acepta). */
 function clean<T extends Record<string, unknown>>(obj: T): T {
   return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined)) as T;
+}
+
+function mapProducto(snapshot: QueryDocumentSnapshot<DocumentData>): Producto {
+  return { id: snapshot.id, ...(snapshot.data() as Omit<Producto, 'id'>) };
+}
+
+async function getProductPage(
+  filters: QueryConstraint[],
+  pageSize: number,
+  cursor?: ProductoCursor | null,
+): Promise<ProductoPage> {
+  const constraints: QueryConstraint[] = [...filters, orderBy('nombre')];
+  if (cursor) constraints.push(startAfter(cursor));
+  constraints.push(limit(Math.max(1, Math.min(pageSize, 100))));
+  const snapshot = await getDocs(query(col, ...constraints));
+  return {
+    products: snapshot.docs.map(mapProducto),
+    cursor: snapshot.docs[snapshot.docs.length - 1] ?? null,
+    hasMore: snapshot.docs.length === Math.max(1, Math.min(pageSize, 100)),
+  };
 }
 
 export const productService = {
@@ -83,6 +115,24 @@ export const productService = {
     );
   },
 
+  subscribeFeatured(onData: (items: Producto[]) => void, onError: (msg: string) => void): () => void {
+    const q = query(col, where('destacado', '==', true));
+    return onSnapshot(
+      q,
+      (snap) => {
+        const items = snap.docs
+          .map((d) => ({ id: d.id, ...(d.data() as Omit<Producto, 'id'>) }))
+          .filter((product) => product.activo)
+          .sort((a, b) => a.nombre.localeCompare(b.nombre));
+        onData(items);
+      },
+      (err) => {
+        console.error('[productService.subscribeFeatured]', err);
+        onError('No se pudieron cargar los productos destacados.');
+      },
+    );
+  },
+
   /** Lee productos públicos desde cache local (si existe). */
   getCachedActive(): Producto[] {
     try {
@@ -94,18 +144,6 @@ export const productService = {
       return [];
     }
   },
-
-  /** Fallback rápido: trae una ventana inicial de productos públicos. */
-  async getActiveFirstPage(pageSize = 24): Promise<Result<Producto[]>> {
-    return run(async () => {
-      const q = query(col, where('activo', '==', true), limit(pageSize));
-      const snap = await getDocs(q);
-      return snap.docs
-        .map((d) => ({ id: d.id, ...(d.data() as Omit<Producto, 'id'>) }))
-        .sort((a, b) => a.nombre.localeCompare(b.nombre));
-    });
-  },
-
 
   create(data: ProductoInput): Promise<Result<string>> {
     return run(async () => {
@@ -158,6 +196,29 @@ export const productService = {
       const imagenes = snap.exists() ? ((snap.data() as Producto).imagenes ?? []) : [];
       await deleteDoc(doc(db, 'products', id));
       return imagenes;
+    });
+  },
+  getActivePage(pageSize = 16, cursor?: ProductoCursor | null): Promise<Result<ProductoPage>> {
+    return run(() => getProductPage([where('activo', '==', true)], pageSize, cursor));
+  },
+
+  getInventoryPage(negocio: Negocio, pageSize = 30, cursor?: ProductoCursor | null): Promise<Result<ProductoPage>> {
+    return run(() => getProductPage([where('negocio', '==', negocio)], pageSize, cursor));
+  },
+
+  getLowStockProducts(maxResults = 6, pageSize = 30): Promise<Result<Producto[]>> {
+    return run(async () => {
+      const objetivo = Math.max(1, Math.min(maxResults, 30));
+      const productos: Producto[] = [];
+      let cursor: ProductoCursor | null = null;
+      let hasMore = true;
+      while (hasMore && productos.length < objetivo) {
+        const page = await getProductPage([where('activo', '==', true)], pageSize, cursor);
+        productos.push(...page.products.filter((product) => product.stock <= product.stockMinimo).slice(0, objetivo - productos.length));
+        cursor = page.cursor;
+        hasMore = page.hasMore;
+      }
+      return productos;
     });
   },
 };

@@ -22,7 +22,7 @@ Modelo del lado público (sin cuentas):
 | URL | Vista | Acceso | Módulo |
 |---|---|---|---|
 | `/` | Home: hero, categorías, destacados | Abierto | Catálogo |
-| `/catalogo` | Listado con filtros, orden, paginación | Abierto | Catálogo |
+| `/catalogo` | Catálogo paginado, 16 productos por tanda, con filtros y búsqueda sobre lo cargado | Abierto | Catálogo |
 | `/categoria/:slug` | Catálogo filtrado por categoría | Abierto | Catálogo |
 | `/producto/:id` | Detalle: galería, precio, specs, agregar al carrito. Usa el **ID único** del producto (no el nombre), así dos productos pueden llamarse igual sin conflicto | Abierto | Catálogo |
 | `/buscar?q=` | Resultados de búsqueda | Abierto | Catálogo |
@@ -44,13 +44,15 @@ Notas: `/carrito/confirmar` puede ser una página o un modal sobre el carrito. N
 |---|---|---|---|
 | `/adm` | **Login admin** (puerta). Si ya hay sesión válida → redirige a `/adm/dashboard` | Abierto (form) | Auth |
 | `/adm/dashboard` | Métricas: ventas, pedidos, stock bajo, top productos | Autenticado | Dashboard |
-| `/adm/notificaciones` | Bandeja de consultas de carrito; estados nuevo/visto/atendido; badge de pendientes | Autenticado | Notificaciones |
+| `/adm/notificaciones` | Bandeja paginada (30 por tanda) de consultas; estados nuevo/visto/atendido; badge de pendientes | Autenticado | Notificaciones |
 | `/adm/notificaciones/:id` | Detalle: cliente, productos; "Responder por WhatsApp"; "Convertir en venta" | Autenticado | Notificaciones |
-| `/adm/inventario` | Inventario con pestañas **Productos** / **Accesorios**; stock, alta, editar, soft-delete | Autenticado | Inventario |
+| `/adm/inventario` | Inventario paginado (30 por tanda) con pestañas **Productos** / **Accesorios**; stock, alta, editar, soft-delete | Autenticado | Inventario |
 | `/adm/inventario/nuevo` | Alta de producto (elige unidad) | Autenticado | Inventario |
 | `/adm/inventario/:id` | Editar: variantes, stock, costo, precio, imágenes | Autenticado | Inventario |
+| `/adm/qr` | Imprimir etiquetas QR, 30 productos activos por tanda y selección acumulable | Autenticado | QR Inventario |
+| `/adm/qr` | Seleccionar e imprimir etiquetas QR; carga 30 productos activos por tanda | Autenticado | QR Inventario |
 | `/adm/categorias` | CRUD de categorías y orden (por unidad) | Autenticado | Categorías |
-| `/adm/ventas` | Listado, filtros y exportación mensual CSV con detalle de productos, cliente, pagos y facturación | Autenticado | Ventas |
+| `/adm/ventas` | Listado paginado (30 por tanda), filtros y exportación mensual CSV completa con detalle de productos, cliente, pagos y facturación | Autenticado | Ventas |
 | `/adm/ventas/nueva` | Crear venta: agregar productos, medio de pago, descuento | Autenticado | Ventas |
 | `/adm/ventas/:id` | Detalle, comprobante PDF del cliente, reporte para facturación manual, anular | Autenticado | Ventas |
 | `/adm/cuentas-a-cobrar` | Listado de cuentas pendientes, pagadas, convertidas y canceladas | Autenticado | Cuentas a cobrar |
@@ -60,7 +62,7 @@ Notas: `/carrito/confirmar` puede ser una página o un modal sobre el carrito. N
 | `/adm/gastos` | Registrar/editar gastos comunes (alquiler, servicios, insumos…) | Autenticado | Gastos |
 | `/adm/importaciones` | Lotes de importación | Autenticado | Importaciones |
 | `/adm/importaciones/:id` | Detalle de lote: costo, tipo de cambio, productos | Autenticado | Importaciones |
-| `/adm/contactos` | Contactos derivados de pedidos y ventas (por celular) | Autenticado | Contactos |
+| `/adm/contactos` | Contactos derivados de pedidos y ventas (30 registros de cada fuente por tanda) | Autenticado | Contactos |
 | `/adm/contactos/:tel` | Historial de ese celular | Autenticado | Contactos |
 | `/adm/contenido` | Banners y destacados del home | Autenticado | Contenido |
 | `/adm/configuracion` | Datos del negocio, WhatsApp, stock mínimo, datos fiscales (CUIT monotributo), envíos, medios de pago | Autenticado | Configuración |

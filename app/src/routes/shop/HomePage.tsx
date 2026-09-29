@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { useCatalog } from '@/hooks/useCatalog';
+import { useFeaturedProducts } from '@/hooks/useProducts';
 import { FeaturedCarousel } from '@/components/shop/FeaturedCarousel';
 import { NovedadesPopup } from '@/components/shop/NovedadesPopup';
 import { Card, CardBody } from '@/components/ui/Card';
@@ -10,7 +10,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { useBusinessSettings } from '@/hooks/useBusinessSettings';
 
 export function HomePage() {
-  const { featured, loading } = useCatalog();
+  const { products: featured, loading } = useFeaturedProducts();
   const { settings, loading: settingsLoading } = useBusinessSettings();
 
   const heroTitulo = settings.heroTitulo ?? 'Tecnologia que si se siente premium.';

@@ -3,12 +3,18 @@ import { pedidoService } from '@/services/pedidoService';
 import type { Pedido } from '@/models';
 
 /** Suscribe en vivo a las consultas (pedidos) y calcula los pendientes. */
-export function usePedidos(filtro?: 'pendientes' | 'atendidos' | 'todos') {
+export function usePedidos(enabled = true) {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!enabled) {
+      setPedidos([]);
+      setLoading(false);
+      setError(null);
+      return;
+    }
     setLoading(true);
     setError(null);
     const onData = (items: Pedido[]) => {
@@ -20,14 +26,9 @@ export function usePedidos(filtro?: 'pendientes' | 'atendidos' | 'todos') {
       setError(msg);
       setLoading(false);
     };
-    const unsub = filtro && filtro !== 'todos'
-      ? pedidoService.subscribeEstado(filtro, onData, onError)
-      : pedidoService.subscribe(
-        onData,
-        onError,
-    );
+    const unsub = pedidoService.subscribe(onData, onError);
     return unsub;
-  }, [filtro]);
+  }, [enabled]);
 
   // Pendientes = no atendidos ni descartados
   const pendientes = useMemo(
@@ -42,7 +43,20 @@ export function usePedidos(filtro?: 'pendientes' | 'atendidos' | 'todos') {
 export function usePedidosPendientes(): number {
   const [pendientes, setPendientes] = useState(0);
 
-  useEffect(() => pedidoService.subscribePendientes((items) => setPendientes(items.length), () => {}), []);
+  useEffect(() => {
+    const actualizar = () => {
+      void pedidoService.getPendientesCount().then((result) => {
+        if (result.ok) setPendientes(result.data);
+      });
+    };
+    actualizar();
+    window.addEventListener('focus', actualizar);
+    window.addEventListener('ti:pending-orders-updated', actualizar);
+    return () => {
+      window.removeEventListener('focus', actualizar);
+      window.removeEventListener('ti:pending-orders-updated', actualizar);
+    };
+  }, []);
 
   return pendientes;
 }

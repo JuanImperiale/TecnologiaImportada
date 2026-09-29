@@ -27,3 +27,27 @@ export function useProducts(negocio: Negocio) {
 
   return { products, loading, error };
 }
+
+/** Suscribe solo a productos marcados como destacados. */
+export function useFeaturedProducts() {
+  const [products, setProducts] = useState<Producto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = productService.subscribeFeatured(
+      (items) => {
+        setProducts(items);
+        setLoading(false);
+        setError(null);
+      },
+      (message) => {
+        setError(message);
+        setLoading(false);
+      },
+    );
+    return unsubscribe;
+  }, []);
+
+  return { products, loading, error };
+}

@@ -1,11 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Plus, Search, Pencil, Trash2, ImageOff, AlertTriangle, QrCode, Printer, Copy, ExternalLink } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, ImageOff, AlertTriangle, QrCode, Printer, Copy, ExternalLink, RefreshCw } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
-import { useProducts } from '@/hooks/useProducts';
 import { useCategories } from '@/hooks/useCategories';
-import { productService } from '@/services/productService';
+import { productService, type ProductoCursor } from '@/services/productService';
 import { UnitTabs } from '@/components/admin/UnitTabs';
 import { useQrPrint } from '@/hooks/useQrPrint';
 import { Card } from '@/components/ui/Card';
@@ -21,10 +20,36 @@ import type { Negocio, Producto } from '@/models';
 
 export function InventarioPage() {
   const [negocio, setNegocio] = useState<Negocio>('productos');
-  const { products, loading, error } = useProducts(negocio);
+  const [products, setProducts] = useState<Producto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [cursor, setCursor] = useState<ProductoCursor | null>(null);
+  const [hasMore, setHasMore] = useState(false);
   const { categories } = useCategories(negocio);
   const catMap = useMemo(() => new Map(categories.map((c) => [c.id, c.nombre])), [categories]);
   const [q, setQ] = useState('');
+
+  const cargarPagina = useCallback(async (unidad: Negocio, desde: ProductoCursor | null, reemplazar: boolean) => {
+    if (reemplazar) setLoading(true);
+    else setLoadingMore(true);
+    const resultado = await productService.getInventoryPage(unidad, 30, desde);
+    if (resultado.ok) {
+      setProducts((actuales) => reemplazar ? resultado.data.products : [...actuales, ...resultado.data.products]);
+      setCursor(resultado.data.cursor);
+      setHasMore(resultado.data.hasMore);
+      setError(null);
+    } else {
+      setError(resultado.error.message);
+    }
+    setLoading(false);
+    setLoadingMore(false);
+  }, []);
+
+  useEffect(() => {
+    setQ('');
+    void cargarPagina(negocio, null, true);
+  }, [negocio, cargarPagina]);
 
   const filtered = useMemo(() => {
     if (!q.trim()) return products;
@@ -33,7 +58,7 @@ export function InventarioPage() {
     );
   }, [products, q, catMap]);
 
-  const stockBajo = products.filter((p) => p.activo && p.stock <= p.stockMinimo).length;
+  const stockBajo = filtered.filter((p) => p.activo && p.stock <= p.stockMinimo).length;
 
   const [toDelete, setToDelete] = useState<Producto | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -72,12 +97,20 @@ export function InventarioPage() {
           <h1 className="text-2xl font-bold tracking-tight">Inventario</h1>
           {stockBajo > 0 && (
             <p className="mt-1 flex items-center gap-1.5 text-sm text-warning">
-              <AlertTriangle size={15} aria-hidden="true" /> {stockBajo} con stock bajo
+              <AlertTriangle size={15} aria-hidden="true" /> {stockBajo} con stock bajo en esta página
             </p>
           )}
         </div>
-        <UnitTabs value={negocio} onChange={setNegocio} />
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={() => void cargarPagina(negocio, null, true)} disabled={loading}>
+            <RefreshCw size={15} aria-hidden="true" /> Actualizar
+          </Button>
+          <UnitTabs value={negocio} onChange={setNegocio} />
+        </div>
       </div>
+      <p className="mb-3 text-xs text-text-soft">
+        El buscador y el indicador de stock bajo abarcan los productos cargados. Cargá más páginas para ampliar los resultados.
+      </p>
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div className="relative min-w-[220px] flex-1">
@@ -169,6 +202,14 @@ export function InventarioPage() {
               </Card>
             );
           })}
+        </div>
+      )}
+
+      {!loading && !error && hasMore && (
+        <div className="mt-4 flex justify-center">
+          <Button variant="ghost" onClick={() => void cargarPagina(negocio, cursor, false)} loading={loadingMore} disabled={loadingMore}>
+            Cargar 30 productos más
+          </Button>
         </div>
       )}
 

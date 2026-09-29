@@ -27,10 +27,19 @@ function messageFromError(error: unknown): { code: string; message: string } {
     typeof error === 'object' && error !== null && 'code' in error
       ? String((error as { code: unknown }).code)
       : 'unknown';
+  const detail = typeof error === 'object' && error !== null && 'message' in error
+    ? String((error as { message: unknown }).message)
+    : '';
+
+  if (code === 'failed-precondition' && /index/i.test(detail)) {
+    return { code, message: 'Esta consulta necesita un índice de Firestore. Publicá los índices configurados del proyecto.' };
+  }
 
   const map: Record<string, string> = {
     'permission-denied': 'No tenés permisos para esta acción.',
     unauthenticated: 'Necesitás iniciar sesión.',
+    'resource-exhausted': 'Se agotó una cuota o límite de Firebase. Revisá el uso y la facturación del proyecto.',
+    'quota-exceeded': 'Se agotó una cuota o límite de Firebase. Revisá el uso y la facturación del proyecto.',
     'auth/invalid-credential': 'Email o contraseña incorrectos.',
     'auth/invalid-email': 'El email no es válido.',
     'auth/user-not-found': 'No existe un usuario con ese email.',

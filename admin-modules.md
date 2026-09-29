@@ -26,7 +26,7 @@ La seguridad real es: **guard de sesión** en el front + **Firestore Rules** que
 Cada vez que un cliente confirma el carrito en la tienda se crea una notificación (documento en `pedidos`, ver architecture.md). Este módulo es la bandeja de entrada del admin.
 
 Funciones:
-- Lista de consultas con **nombre, celular, productos, fecha** y estado.
+- Lista de consultas con **nombre, celular, productos, fecha** y estado; carga 30 por tanda y permite cargar registros anteriores.
 - Estados: `nuevo` → `visto` → `atendido`. (Opcional `descartado`.)
 - Marcar como **atendido** registra quién lo atendió (`atendidoPor`) y cuándo (`atendidoEn`).
 - Marcar como **visto** automáticamente al abrir el detalle (para saber si todavía no lo miró nadie).
@@ -44,11 +44,12 @@ Regla: una notificación no descuenta stock; es solo una consulta. El stock se m
 Vista dividida en dos pestañas/secciones según `negocio`: **Productos** y **Accesorios**. Misma estructura de datos, distinta unidad.
 
 Funciones:
-- Ver listado con **stock actual**, precio, costo, estado (activo/inactivo) y unidad.
+- Ver listado paginado de 30 artículos con **stock actual**, precio, costo, estado (activo/inactivo) y unidad.
 - **Dar de alta**, **editar**, **eliminar** (eliminar = *soft delete*: marca `activo: false` para no romper ventas históricas; no borra el documento).
 - Carga de imágenes a Firebase Storage.
-- Búsqueda y filtro por categoría, unidad, stock bajo.
+- Búsqueda y filtro por categoría, unidad y stock bajo sobre los artículos cargados; **Cargar más** amplía la búsqueda.
 - **Alerta de stock bajo**: si `stock <= stockMinimo`, se resalta y aparece en el dashboard.
+- El buscador de Inventario filtra los productos cargados; al cargar otra tanda amplía los resultados posibles.
 - Gestión de **variantes** (color, capacidad) con stock y precio propios.
 
 Estructura de datos de un producto (colección `products`):
@@ -130,6 +131,11 @@ Como no integramos ARCA automáticamente, el sistema genera lo necesario para qu
 - Acceso al comprobante PDF del cliente y al resumen para facturación manual.
 - **Anular venta**: reintegra stock y ajusta el balance (queda registrada como anulada, no se borra).
 - **Exportar CSV mensual**: elegir mes y año; al solicitarlo consulta todas las ventas del período (también anuladas), independiente de las páginas y filtros visibles. Tiene una fila por artículo con datos de cliente, cantidades, precios/costos, cobros, envío, facturación y pagos parciales cuando corresponde.
+- Los buscadores de selección de productos/clientes no limitan coincidencias; el catálogo se carga cuando comienza la búsqueda.
+
+### Catálogo público y QR Inventario
+- El catálogo público consulta 16 productos activos por página; filtros y búsqueda se aplican a las páginas cargadas y **Cargar más productos** trae la siguiente tanda.
+- QR Inventario carga 30 productos activos por tanda. La selección se conserva entre páginas y unidades; **Seleccionar visibles** aplica a los resultados cargados.
 
 ### Estructura de datos (colección `ventas`)
 
@@ -229,6 +235,8 @@ Colección `ventas` ya aporta ingresos/COGS por mes y unidad (se agregan por con
 - **Importaciones (lotes)** — proveedor, costo, **tipo de cambio**, fecha de arribo, productos del lote. Al cargar un lote, ingresa stock y fija el `costo` de los productos.
 - **Contenido / home** — banners, destacados.
 - **Contactos** — derivados de pedidos y ventas, agrupados por celular.
+- Contactos arma sugerencias sin límite al escribir en el selector de clientes; en su vista, pedidos y ventas se cargan de 30 en 30 y los conteos reflejan la actividad cargada.
+- **QR Inventario** — productos activos por tandas de 30; la selección se conserva entre páginas y unidades. “Seleccionar visibles” opera sobre los resultados cargados.
 - **Gestión de accesos** — no hay módulo en la app: se administra desde **Firebase → Authentication → Usuarios** (alta/baja de quién puede entrar).
 - **Configuración** — datos del negocio, número de WhatsApp, umbral de stock bajo, datos fiscales (CUIT monotributo), medios de pago, envíos.
 

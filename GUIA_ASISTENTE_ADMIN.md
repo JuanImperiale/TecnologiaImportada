@@ -2,7 +2,7 @@
 
 > **Producto:** Tecnología Importada (TI)  
 > **Audiencia:** personas autorizadas que usan el panel administrador  
-> **Versión de conocimiento:** 1.2  
+> **Versión de conocimiento:** 1.5  
 > **Fecha de verificación:** 28 de septiembre de 2026  
 > **Alcance:** guía funcional basada en la aplicación implementada y sus reglas actuales. No reemplaza asesoramiento contable, fiscal o legal.
 
@@ -146,6 +146,14 @@ Una línea marcada como bonificación se entrega sin cobrarla, pero conserva su 
 
 El listado carga 30 ventas por vez. La búsqueda y los filtros se aplican sobre las páginas ya cargadas; usá **Cargar 30 ventas anteriores** para revisar registros más antiguos. El CSV no depende de las páginas cargadas: consulta todo el mes elegido al exportar.
 
+### Búsquedas y carga por tandas
+
+- Catálogo carga 16 productos por tanda; Inventario, Ventas y Notificaciones cargan 30; Contactos trae hasta 30 pedidos y 30 ventas por tanda. Usá **Cargar más** para consultar páginas anteriores.
+- En estas vistas, la búsqueda y los filtros se aplican sobre los registros cargados. Si no aparece algo, cargá más páginas y volvé a buscar.
+- Los contadores de Contactos e Inventario reflejan los registros cargados, no necesariamente todo el historial cuando quedan páginas pendientes.
+- En buscadores que ofrecen opciones para elegir (por ejemplo, productos en una venta, cuenta a cobrar o importación, y clientes), no hay un tope de coincidencias. La consulta se activa al empezar a escribir; si la lista es larga, desplazate por todas las coincidencias.
+- Si en un selector no aparece algo, verificá la escritura, el estado activo/stock cuando corresponda y la unidad del producto. No hace falta cargar páginas adicionales en esos selectores.
+
 ### Pedidos de la tienda
 
 - El cliente arma un carrito sin cuenta, completa nombre y celular y envía una consulta.
@@ -217,7 +225,7 @@ En una venta se elige retiro en local o envío. Si se selecciona envío, se ingr
 
 1. Abrí **QR Inventario** y elegí Productos o Accesorios.
 2. Filtrá por categoría o buscá por nombre/SKU.
-3. Seleccioná los artículos deseados; podés seleccionar todos los filtrados.
+3. Seleccioná los artículos visibles; **Seleccionar visibles** aplica a esta tanda. Usá **Cargar 30 productos más** para ampliar la lista y sumar artículos de otras tandas. La selección se conserva al cambiar de página o unidad.
 4. Revisá la cantidad seleccionada y elegí **Imprimir seleccionados**.
 5. La hoja imprimible contiene códigos que abren la ficha pública del producto. Antes de imprimir, confirmá que el artículo y la ficha pública sean los correctos.
 

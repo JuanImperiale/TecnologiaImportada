@@ -116,13 +116,6 @@ export const saleService = {
     });
   },
 
-  async getRecent(pageSize = 50): Promise<Result<Venta[]>> {
-    return run(async () => {
-      const snap = await getDocs(query(col, orderBy('creado', 'desc'), limit(Math.max(1, Math.min(pageSize, 100)))));
-      return snap.docs.map(mapVenta);
-    });
-  },
-
   /**
    * Registra una venta de forma atómica: asigna número correlativo, valida y
    * descuenta stock, escribe la venta y los movimientos de stock.
