@@ -44,6 +44,7 @@ service cloud.firestore {
 
     // Datos internos del negocio: solo equipo (autenticado)
     match /ventas/{id}            { allow read, write: if signedIn(); }
+    match /regalos/{id}           { allow read, write: if signedIn(); }
     match /cuentasCobrar/{id}     { allow read, write: if signedIn(); }
     match /gastos/{id}            { allow read, write: if signedIn(); }
     match /movimientosStock/{id}  { allow read, write: if signedIn(); }

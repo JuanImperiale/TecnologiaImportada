@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Gift } from 'lucide-react';
 import { useVentas } from '@/hooks/useVentas';
 import { useGastos } from '@/hooks/useGastos';
+import { useRegalos } from '@/hooks/useRegalos';
 import { computeBalance } from '@/services/balanceService';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Select } from '@/components/ui/Select';
@@ -83,8 +84,9 @@ export function BalancePage() {
   const [ym, setYm] = useState(monthKey(new Date()));
   const { ventas, loading: lv } = useVentas(ym);
   const { gastos, loading: lg } = useGastos(ym);
-  const b = useMemo(() => computeBalance(ventas, gastos, ym), [ventas, gastos, ym]);
-  const loading = lv || lg;
+  const { regalos, loading: lr } = useRegalos(ym);
+  const b = useMemo(() => computeBalance(ventas, gastos, ym, regalos), [ventas, gastos, regalos, ym]);
+  const loading = lv || lg || lr;
   const [year, month] = ym.split('-');
   const yearOptions = useMemo(() => {
     const currentYear = new Date().getFullYear();
@@ -121,6 +123,7 @@ export function BalancePage() {
                 <Metric label="Vendido" value={formatUsd(b.usd.ingresos.total)} />
                 <Metric label="Costo" value={formatUsd(b.usd.costo.total)} />
                 <Metric label="Margen bruto" value={formatUsd(b.usd.margen.total)} />
+                {b.regalos.usd > 0 && <Metric label="Regalos" value={`−${formatUsd(b.regalos.usd)}`} />}
                 <Metric label="Ganancia en USD" value={formatUsd(b.netaUsd)} strong />
               </div>
             </div>
@@ -132,6 +135,7 @@ export function BalancePage() {
                 <Metric label="Margen bruto" value={formatMoney(b.ars.margen.total)} />
                 <Metric label="Envíos" value={formatMoney(b.envios)} />
                 {b.descuentosArs > 0 && <Metric label="Descuentos efectivo" value={`−${formatMoney(b.descuentosArs)}`} />}
+                {b.regalos.ars > 0 && <Metric label="Regalos" value={`−${formatMoney(b.regalos.ars)}`} />}
                 <Metric label="Gastos" value={formatMoney(b.gastos)} />
                 <Metric label="Ganancia en $" value={formatMoney(b.netaArs)} strong />
               </div>

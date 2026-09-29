@@ -196,6 +196,25 @@ export interface Venta {
   creado: Timestamp;
 }
 
+/** Accesorios entregados sin cargo, opcionalmente asociados a una venta. */
+export interface RegaloItem {
+  productId: string;
+  nombre: string;
+  negocio: 'accesorios';
+  moneda: 'ARS' | 'USD';
+  cantidad: number;
+  costoUnitario: number;
+}
+
+export interface Regalo {
+  id: string;
+  items: RegaloItem[];
+  ventaId?: string;
+  ventaNumero?: number;
+  creado: Timestamp;
+  registradoPor: string;
+}
+
 export type CategoriaGasto =
   | 'alquiler'
   | 'servicios'
@@ -216,7 +235,7 @@ export interface Gasto {
   creadoPor: string;
 }
 
-export type TipoMovimiento = 'venta' | 'ingreso' | 'ajuste' | 'anulacion' | 'reserva' | 'liberacion';
+export type TipoMovimiento = 'venta' | 'regalo' | 'ingreso' | 'ajuste' | 'anulacion' | 'reserva' | 'liberacion';
 
 export interface MovimientoStock {
   id: string;

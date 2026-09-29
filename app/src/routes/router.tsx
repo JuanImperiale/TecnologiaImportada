@@ -26,6 +26,7 @@ const InventarioPage = lazy(() => import('@/routes/admin/InventarioPage').then((
 const ProductFormPage = lazy(() => import('@/routes/admin/ProductFormPage').then((m) => ({ default: m.ProductFormPage })));
 const CategoriasPage = lazy(() => import('@/routes/admin/CategoriasPage').then((m) => ({ default: m.CategoriasPage })));
 const VentasPage = lazy(() => import('@/routes/admin/VentasPage').then((m) => ({ default: m.VentasPage })));
+const RegalosPage = lazy(() => import('@/routes/admin/RegalosPage').then((m) => ({ default: m.RegalosPage })));
 const CuentasCobrarPage = lazy(() => import('@/routes/admin/CuentasCobrarPage').then((m) => ({ default: m.CuentasCobrarPage })));
 const NuevaCuentaCobrarPage = lazy(() => import('@/routes/admin/CuentasCobrarPage').then((m) => ({ default: m.NuevaCuentaCobrarPage })));
 const CuentaCobrarDetailPage = lazy(() => import('@/routes/admin/CuentasCobrarPage').then((m) => ({ default: m.CuentaCobrarDetailPage })));
@@ -87,6 +88,7 @@ export const router = createBrowserRouter([
           { path: 'inventario/:id', element: page(<ProductFormPage />) },
           { path: 'categorias', element: page(<CategoriasPage />) },
           { path: 'ventas', element: page(<VentasPage />) },
+          { path: 'regalos', element: page(<RegalosPage />) },
           { path: 'ventas/nueva', element: page(<NuevaVentaPage />) },
           { path: 'ventas/:id', element: page(<VentaDetailPage />) },
           { path: 'cuentas-a-cobrar', element: page(<CuentasCobrarPage />) },

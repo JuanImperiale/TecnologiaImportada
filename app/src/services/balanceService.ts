@@ -1,5 +1,5 @@
 import { monthKey } from '@/lib/utils';
-import type { Venta, Gasto } from '@/models';
+import type { Venta, Gasto, Regalo } from '@/models';
 
 type MonedaBalance = 'USD' | 'ARS';
 type UnidadBalance = 'productos' | 'accesorios';
@@ -23,6 +23,8 @@ export interface BalanceMes {
   envios: number; // ARS
   /** Descuentos por pago en efectivo (ARS), ya restados de los ingresos ARS. */
   descuentosArs: number;
+  /** Costo de accesorios entregados como regalos, separado de las ventas. */
+  regalos: { usd: number; ars: number };
   gastos: number; // ARS
   /** Resultado neto en pesos = margen ARS + envíos − gastos. */
   netaArs: number;
@@ -95,11 +97,12 @@ export function totalesCobrados(v: Venta): { usd: number; ars: number } {
  * Dentro de cada moneda se atribuye por unidad de negocio (por item).
  * El costo de las bonificaciones se reasigna a la unidad que cobró (misma moneda).
  */
-export function computeBalance(ventas: Venta[], gastos: Gasto[], ym: string): BalanceMes {
+export function computeBalance(ventas: Venta[], gastos: Gasto[], ym: string, regalos: Regalo[] = []): BalanceMes {
   const usd = vacio();
   const ars = vacio();
   let envios = 0;
   let descuentosArs = 0;
+  const costoRegalos = { usd: 0, ars: 0 };
 
   const ventasMes = ventas.filter((v) => v.estado === 'confirmada' && monthKey(v.creado) === ym);
 
@@ -185,14 +188,23 @@ export function computeBalance(ventas: Venta[], gastos: Gasto[], ym: string): Ba
     .filter((g) => monthKey(g.fecha) === ym)
     .reduce((acc, g) => acc + g.monto, 0);
 
+  for (const regalo of regalos) {
+    for (const item of regalo.items ?? []) {
+      const costo = (item.costoUnitario ?? 0) * (item.cantidad ?? 0);
+      if (item.moneda === 'USD') costoRegalos.usd += costo;
+      else costoRegalos.ars += costo;
+    }
+  }
+
   return {
     usd,
     ars,
     envios,
     descuentosArs,
+    regalos: costoRegalos,
     gastos: gastosTotal,
-    netaArs: ars.margen.total + envios - gastosTotal,
-    netaUsd: usd.margen.total,
+    netaArs: ars.margen.total + envios - gastosTotal - costoRegalos.ars,
+    netaUsd: usd.margen.total - costoRegalos.usd,
     ventasCount: ventasMes.length,
   };
 }

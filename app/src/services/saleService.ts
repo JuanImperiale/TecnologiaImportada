@@ -286,6 +286,14 @@ export const saleService = {
     });
   },
 
+  async getByNumero(numero: number): Promise<Result<Venta | null>> {
+    return run(async () => {
+      const snapshot = await getDocs(query(col, where('numero', '==', numero), limit(1)));
+      const item = snapshot.docs[0];
+      return item ? mapVenta(item) : null;
+    });
+  },
+
   /** Registra manualmente los datos de la Factura C emitida en ARCA. */
   registrarFactura(ventaId: string, nroFacturaC: string, cae: string): Promise<Result<void>> {
     return run(async () => {

@@ -51,6 +51,31 @@ export function InventarioPage() {
     void cargarPagina(negocio, null, true);
   }, [negocio, cargarPagina]);
 
+  useEffect(() => {
+    const term = q.trim();
+    if (!term) return;
+    let active = true;
+    const timer = window.setTimeout(() => {
+      setLoading(true);
+      void productService.searchAll({ negocio }).then((resultado) => {
+        if (!active) return;
+        if (resultado.ok) {
+          setProducts(resultado.data);
+          setCursor(null);
+          setHasMore(false);
+          setError(null);
+        } else {
+          setError(resultado.error.message);
+        }
+        setLoading(false);
+      });
+    }, 250);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [q, negocio]);
+
   const filtered = useMemo(() => {
     if (!q.trim()) return products;
     return products.filter((p) =>
@@ -109,7 +134,7 @@ export function InventarioPage() {
         </div>
       </div>
       <p className="mb-3 text-xs text-text-soft">
-        El buscador y el indicador de stock bajo abarcan los productos cargados. Cargá más páginas para ampliar los resultados.
+        El buscador revisa todos los productos de la unidad seleccionada.
       </p>
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -122,7 +147,11 @@ export function InventarioPage() {
           <Input
             placeholder="Buscar por nombre, SKU o categoría…"
             value={q}
-            onChange={(e) => setQ(e.target.value)}
+            onChange={(e) => {
+              const value = e.target.value;
+              setQ(value);
+              if (!value.trim()) void cargarPagina(negocio, null, true);
+            }}
             className="pl-9"
           />
         </div>

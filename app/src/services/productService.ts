@@ -34,6 +34,11 @@ export interface ProductoPage {
   hasMore: boolean;
 }
 
+export interface ProductoSearchFilters {
+  negocio?: Negocio;
+  soloActivos?: boolean;
+}
+
 const col = collection(db, 'products');
 export const PUBLIC_PRODUCTS_CACHE_KEY = 'ti_public_products_cache_v1';
 
@@ -204,6 +209,17 @@ export const productService = {
 
   getInventoryPage(negocio: Negocio, pageSize = 30, cursor?: ProductoCursor | null): Promise<Result<ProductoPage>> {
     return run(() => getProductPage([where('negocio', '==', negocio)], pageSize, cursor));
+  },
+
+  /** Carga el universo de búsqueda acotado a la unidad y estado solicitados. */
+  searchAll(filters: ProductoSearchFilters = {}): Promise<Result<Producto[]>> {
+    return run(async () => {
+      const constraints: QueryConstraint[] = [];
+      if (filters.negocio) constraints.push(where('negocio', '==', filters.negocio));
+      if (filters.soloActivos) constraints.push(where('activo', '==', true));
+      const snapshot = await getDocs(query(col, ...constraints));
+      return snapshot.docs.map(mapProducto);
+    });
   },
 
   getLowStockProducts(maxResults = 6, pageSize = 30): Promise<Result<Producto[]>> {

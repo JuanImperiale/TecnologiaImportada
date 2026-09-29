@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { computeBalance, totalesCobrados } from './balanceService';
 import { monthKey } from '@/lib/utils';
-import type { ItemVenta, Venta } from '@/models';
+import type { ItemVenta, Regalo, Venta } from '@/models';
 
 const ahora = new Date();
 const ym = monthKey(ahora);
@@ -130,5 +130,20 @@ describe('computeBalance – descuento efectivo', () => {
       descuento: { porcentaje: 10, montoArs: 100 },
     });
     expect(computeBalance([v], [], ym).descuentosArs).toBe(0);
+  });
+});
+
+describe('computeBalance – regalos', () => {
+  it('subtracts accessory gift costs from the net result without adding sales', () => {
+    const regalo: Regalo = {
+      id: 'r1',
+      items: [{ productId: 'a1', nombre: 'Funda', negocio: 'accesorios', moneda: 'ARS', cantidad: 2, costoUnitario: 1500 }],
+      creado: ahora as unknown as Regalo['creado'],
+      registradoPor: 'admin',
+    };
+    const b = computeBalance([venta([item({ precioUnitario: 6400, costoUnitario: 3000 })])], [], ym, [regalo]);
+    expect(b.regalos.ars).toBe(3000);
+    expect(b.ventasCount).toBe(1);
+    expect(b.netaArs).toBe(400);
   });
 });

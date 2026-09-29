@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { ArrowLeft, Printer, Ban, FileText } from 'lucide-react';
 import { saleService } from '@/services/saleService';
+import { regaloService } from '@/services/regaloService';
 import { settingsService } from '@/services/settingsService';
 import { printComprobante } from '@/lib/comprobante';
 import { Card, CardBody } from '@/components/ui/Card';
@@ -14,7 +15,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ConfirmDialog } from '@/components/ui/Modal';
 import { formatMoney, formatUsd, formatPrice, formatDate } from '@/lib/utils';
 import { medioPagoLabel } from '@/lib/mediosPago';
-import type { Venta } from '@/models';
+import type { Regalo, Venta } from '@/models';
 
 export function VentaDetailPage() {
   const { id } = useParams();
@@ -27,11 +28,14 @@ export function VentaDetailPage() {
   const [nroFacturaC, setNroFacturaC] = useState('');
   const [cae, setCae] = useState('');
   const [facturando, setFacturando] = useState(false);
+  const [regalos, setRegalos] = useState<Regalo[]>([]);
 
   const load = useCallback(async () => {
     if (!id) return;
     const res = await saleService.get(id);
     setVenta(res.ok ? res.data : null);
+    const regalosRes = await regaloService.getByVenta(id);
+    if (regalosRes.ok) setRegalos(regalosRes.data);
     setLoading(false);
   }, [id]);
 
@@ -170,6 +174,25 @@ export function VentaDetailPage() {
             )}
           </CardBody>
         </Card>
+
+        {regalos.length > 0 && (
+          <Card>
+            <CardBody className="flex flex-col gap-3">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-base font-bold">Regalos asociados</h2>
+                <Link to="/adm/regalos" className="text-sm font-medium underline">Ver regalos</Link>
+              </div>
+              <div className="flex flex-col gap-2 text-sm">
+                {regalos.flatMap((regalo) => regalo.items.map((item, index) => (
+                  <div key={`${regalo.id}-${index}`} className="flex justify-between border-t border-line pt-2">
+                    <span>{item.cantidad}× {item.nombre}</span>
+                    <span className="text-text-soft">Costo {formatPrice(item.costoUnitario * item.cantidad, item.moneda)}</span>
+                  </div>
+                )))}
+              </div>
+            </CardBody>
+          </Card>
+        )}
 
         {venta.pagosDetalle && venta.pagosDetalle.length > 0 && (
           <Card>

@@ -52,6 +52,29 @@ export function QrInventarioPage() {
 
   useEffect(() => { void cargarPagina(null, true); }, [cargarPagina]);
 
+  useEffect(() => {
+    const term = q.trim();
+    if (!term) return;
+    let active = true;
+    const timer = window.setTimeout(() => {
+      setLoading(true);
+      void productService.searchAll({ soloActivos: true }).then((result) => {
+        if (!active) return;
+        if (result.ok) {
+          setAll(result.data);
+          setCursor(null);
+          setHasMore(false);
+          setError(null);
+        } else setError(result.error.message);
+        setLoading(false);
+      });
+    }, 250);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [q]);
+
   const categoriasUnidad = useMemo(() => {
     return categorias.filter((category) => category.negocio === negocio);
   }, [categorias, negocio]);
@@ -146,7 +169,11 @@ export function QrInventarioPage() {
           <Input
             placeholder="Buscar por nombre, SKU o categoría…"
             value={q}
-            onChange={(e) => setQ(e.target.value)}
+            onChange={(e) => {
+              const value = e.target.value;
+              setQ(value);
+              if (!value.trim()) void cargarPagina(null, true);
+            }}
             className="pl-9"
           />
         </div>
@@ -181,7 +208,7 @@ export function QrInventarioPage() {
           <Printer size={16} aria-hidden="true" /> Imprimir seleccionados
         </Button>
       </div>
-      <p className="mb-3 text-xs text-text-soft">La búsqueda y selección se aplican a los productos cargados. Conservamos la selección al cambiar de página o unidad.</p>
+      <p className="mb-3 text-xs text-text-soft">La búsqueda revisa todos los productos activos. Conservamos la selección al cambiar de página o unidad.</p>
 
       {loading ? (
         <Spinner />
@@ -190,8 +217,8 @@ export function QrInventarioPage() {
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={<QrCode size={32} />}
-          title={hasMore ? 'Sin coincidencias en los productos cargados' : 'Sin productos'}
-          description={hasMore ? 'Cargá más productos para ampliar la búsqueda.' : q || categoriaId ? 'Probá con otra búsqueda o categoría.' : 'No hay productos activos en esta unidad.'}
+          title="Sin productos"
+          description={q || categoriaId ? 'Probá con otra búsqueda o categoría.' : 'No hay productos activos en esta unidad.'}
         />
       ) : (
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">

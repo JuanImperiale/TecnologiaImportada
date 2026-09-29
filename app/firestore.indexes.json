@@ -23,6 +23,14 @@
         { "fieldPath": "estado", "order": "ASCENDING" },
         { "fieldPath": "creado", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "regalos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ventaId", "order": "ASCENDING" },
+        { "fieldPath": "creado", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

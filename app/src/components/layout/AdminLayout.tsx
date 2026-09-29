@@ -17,6 +17,7 @@ import {
   LogOut,
   QrCode,
   CreditCard,
+  Gift,
   type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
@@ -39,6 +40,7 @@ const GROUPS: { title: string; items: NavItem[] }[] = [
       { to: '/adm/dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { to: '/adm/notificaciones', label: 'Notificaciones', icon: Bell },
       { to: '/adm/ventas', label: 'Ventas', icon: Receipt },
+      { to: '/adm/regalos', label: 'Regalos', icon: Gift },
       { to: '/adm/contactos', label: 'Contactos', icon: Contact },
     ],
   },

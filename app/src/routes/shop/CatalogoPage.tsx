@@ -54,7 +54,33 @@ export function CatalogoPage() {
     setLoadingMore(false);
   }, []);
 
-  useEffect(() => { void cargarPagina(null, true); }, [cargarPagina]);
+  useEffect(() => {
+    if (search.trim()) return;
+    void cargarPagina(null, true);
+  }, [cargarPagina, search]);
+
+  useEffect(() => {
+    const term = search.trim();
+    if (!term) return;
+    let active = true;
+    const timer = window.setTimeout(() => {
+      setLoading(true);
+      void productService.searchAll({ soloActivos: true }).then((resultado) => {
+        if (!active) return;
+        if (resultado.ok) {
+          setProducts(resultado.data);
+          setCursor(null);
+          setHasMore(false);
+          setError(null);
+        } else setError(resultado.error.message);
+        setLoading(false);
+      });
+    }, 250);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [search]);
 
   // Categories are independent of the products loaded in the current pages.
   const categoriasUnidad = useMemo(() => {
@@ -96,7 +122,11 @@ export function CatalogoPage() {
           <Input
             placeholder="Buscar productos…"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              const value = e.target.value;
+              setSearch(value);
+              if (!value.trim()) void cargarPagina(null, true);
+            }}
             className="pl-9"
           />
         </div>
@@ -160,8 +190,8 @@ export function CatalogoPage() {
         <EmptyState title="Error" description={error} />
       ) : filtered.length === 0 ? (
         <EmptyState
-          title={hasMore ? 'Sin coincidencias entre los productos cargados' : 'Sin resultados'}
-          description={hasMore ? 'Cargá más productos para ampliar la búsqueda.' : 'No encontramos productos con esos filtros.'}
+          title="Sin resultados"
+          description="No encontramos productos con esos filtros."
         />
       ) : (
         <div className="flex flex-col gap-5">
@@ -170,10 +200,10 @@ export function CatalogoPage() {
               <ProductCard key={p.id} product={p} />
             ))}
           </div>
-          <p className="text-center text-xs text-text-soft">Mostrando {products.length} productos cargados. Los filtros se aplican sobre las páginas cargadas.</p>
+          <p className="text-center text-xs text-text-soft">La búsqueda revisa todos los productos activos.</p>
         </div>
       )}
-      {!loading && !error && hasMore && (
+      {!loading && !error && hasMore && !search.trim() && (
         <div className="flex justify-center">
           <Button variant="ghost" onClick={() => void cargarPagina(cursor, false)} loading={loadingMore} disabled={loadingMore}>
             <RefreshCw size={15} aria-hidden="true" /> Cargar más productos
