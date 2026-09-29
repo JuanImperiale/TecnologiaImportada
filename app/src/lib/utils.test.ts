@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { baseDescuentoEfectivo, calcDescuento, chunk, matchesSearch, monthDateRange, PUBLIC_SITE_URL, productPublicUrl } from './utils';
+import { baseDescuentoEfectivo, calcDescuento, chunk, filtrarContactosConfirmados, matchesSearch, monthDateRange, PUBLIC_SITE_URL, productPublicUrl } from './utils';
 
 describe('baseDescuentoEfectivo', () => {
   const it_ = (negocio: string, moneda: string, precioUnitario: number, cantidad = 1, tipo = 'venta') => ({
@@ -98,5 +98,18 @@ describe('matchesSearch', () => {
   it('matches everything for an empty query and ignores missing fields', () => {
     expect(matchesSearch('   ', 'x')).toBe(true);
     expect(matchesSearch('sku1', undefined, null, 'SKU1')).toBe(true);
+  });
+});
+
+describe('filtrarContactosConfirmados', () => {
+  it('waits for an explicit confirmation and returns every matching contact', () => {
+    const contacts = Array.from({ length: 20 }, (_, index) => ({
+      nombre: `Juan ${index}`,
+      celular: `549110000${String(index).padStart(4, '0')}`,
+    }));
+
+    expect(filtrarContactosConfirmados('juan', '', contacts)).toEqual([]);
+    expect(filtrarContactosConfirmados('juan', 'juan', contacts)).toHaveLength(20);
+    expect(filtrarContactosConfirmados('maria', 'juan', contacts)).toEqual([]);
   });
 });

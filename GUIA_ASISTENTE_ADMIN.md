@@ -2,7 +2,7 @@
 
 > **Producto:** Tecnología Importada (TI)  
 > **Audiencia:** personas autorizadas que usan el panel administrador  
-> **Versión de conocimiento:** 1.5  
+> **Versión de conocimiento:** 1.7  
 > **Fecha de verificación:** 28 de septiembre de 2026  
 > **Alcance:** guía funcional basada en la aplicación implementada y sus reglas actuales. No reemplaza asesoramiento contable, fiscal o legal.
 
@@ -151,7 +151,8 @@ El listado carga 30 ventas por vez. La búsqueda y los filtros se aplican sobre 
 - Catálogo carga 16 productos por tanda; Inventario, Ventas y Notificaciones cargan 30; Contactos trae hasta 30 pedidos y 30 ventas por tanda. Usá **Cargar más** para consultar páginas anteriores.
 - En estas vistas, la búsqueda y los filtros se aplican sobre los registros cargados. Si no aparece algo, cargá más páginas y volvé a buscar.
 - Los contadores de Contactos e Inventario reflejan los registros cargados, no necesariamente todo el historial cuando quedan páginas pendientes.
-- En buscadores que ofrecen opciones para elegir (por ejemplo, productos en una venta, cuenta a cobrar o importación, y clientes), no hay un tope de coincidencias. La consulta se activa al empezar a escribir; si la lista es larga, desplazate por todas las coincidencias.
+- En buscadores de productos (venta, cuenta a cobrar, importación), no hay tope de coincidencias. El catálogo se consulta cuando empezás a escribir y permanece cargado durante el formulario.
+- En el selector de cliente de una venta, escribir no consulta Firestore. Confirmá con **Buscar** o Enter; la primera búsqueda carga el historial completo una vez para esa venta. Las búsquedas siguientes se hacen en memoria y no vuelven a leer el historial.
 - Si en un selector no aparece algo, verificá la escritura, el estado activo/stock cuando corresponda y la unidad del producto. No hace falta cargar páginas adicionales en esos selectores.
 
 ### Pedidos de la tienda

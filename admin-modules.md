@@ -131,7 +131,7 @@ Como no integramos ARCA automáticamente, el sistema genera lo necesario para qu
 - Acceso al comprobante PDF del cliente y al resumen para facturación manual.
 - **Anular venta**: reintegra stock y ajusta el balance (queda registrada como anulada, no se borra).
 - **Exportar CSV mensual**: elegir mes y año; al solicitarlo consulta todas las ventas del período (también anuladas), independiente de las páginas y filtros visibles. Tiene una fila por artículo con datos de cliente, cantidades, precios/costos, cobros, envío, facturación y pagos parciales cuando corresponde.
-- Los buscadores de selección de productos/clientes no limitan coincidencias; el catálogo se carga cuando comienza la búsqueda.
+- Los buscadores de selección no limitan coincidencias. Los selectores de productos cargan el catálogo al empezar a escribir; el selector de cliente espera **Buscar** o Enter antes de leer pedidos/ventas, una vez por formulario, y reutiliza esos datos en las búsquedas siguientes.
 
 ### Catálogo público y QR Inventario
 - El catálogo público consulta 16 productos activos por página; filtros y búsqueda se aplican a las páginas cargadas y **Cargar más productos** trae la siguiente tanda.
@@ -235,7 +235,7 @@ Colección `ventas` ya aporta ingresos/COGS por mes y unidad (se agregan por con
 - **Importaciones (lotes)** — proveedor, costo, **tipo de cambio**, fecha de arribo, productos del lote. Al cargar un lote, ingresa stock y fija el `costo` de los productos.
 - **Contenido / home** — banners, destacados.
 - **Contactos** — derivados de pedidos y ventas, agrupados por celular.
-- Contactos arma sugerencias sin límite al escribir en el selector de clientes; en su vista, pedidos y ventas se cargan de 30 en 30 y los conteos reflejan la actividad cargada.
+- El selector de cliente de Nueva venta pide confirmación antes de leer el historial; en la vista Contactos, pedidos y ventas se cargan de 30 en 30 y los conteos reflejan la actividad cargada.
 - **QR Inventario** — productos activos por tandas de 30; la selección se conserva entre páginas y unidades. “Seleccionar visibles” opera sobre los resultados cargados.
 - **Gestión de accesos** — no hay módulo en la app: se administra desde **Firebase → Authentication → Usuarios** (alta/baja de quién puede entrar).
 - **Configuración** — datos del negocio, número de WhatsApp, umbral de stock bajo, datos fiscales (CUIT monotributo), medios de pago, envíos.

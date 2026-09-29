@@ -66,6 +66,13 @@ export const saleService = {
     );
   },
 
+  async getAll(): Promise<Result<Venta[]>> {
+    return run(async () => {
+      const snapshot = await getDocs(query(col, orderBy('creado', 'desc')));
+      return snapshot.docs.map(mapVenta);
+    });
+  },
+
   subscribeMonth(
     ym: string,
     onData: (items: Venta[]) => void,

@@ -44,6 +44,13 @@ export const pedidoService = {
     );
   },
 
+  async getAll(): Promise<Result<Pedido[]>> {
+    return run(async () => {
+      const snapshot = await getDocs(query(col, orderBy('creado', 'desc')));
+      return snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as Omit<Pedido, 'id'>) }));
+    });
+  },
+
   /** Cambia el estado de una consulta. Al atender, registra quién y cuándo. */
   setEstado(id: string, estado: EstadoPedido): Promise<Result<void>> {
     return run(async () => {

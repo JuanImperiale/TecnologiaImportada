@@ -139,6 +139,24 @@ export function matchesSearch(query: string, ...fields: (string | undefined | nu
   return words.every((word) => haystack.includes(word));
 }
 
+export interface ContactoBuscable {
+  nombre: string;
+  celular: string;
+}
+
+/** Devuelve todas las coincidencias solo si el texto actual fue confirmado explícitamente. */
+export function filtrarContactosConfirmados<T extends ContactoBuscable>(
+  textoActual: string,
+  textoConfirmado: string,
+  contactos: T[],
+): T[] {
+  const term = textoConfirmado.trim().toLowerCase();
+  if (!term || textoActual.trim() !== textoConfirmado.trim()) return [];
+  return contactos.filter((contacto) =>
+    contacto.nombre.toLowerCase().includes(term) || contacto.celular.includes(term),
+  );
+}
+
 /**
  * Extrae la URL `src` de un `<iframe>` de Google Maps ("Insertar un mapa").
  * Si el valor no contiene un iframe, lo devuelve tal cual (por si ya es un link directo).
