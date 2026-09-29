@@ -135,7 +135,9 @@ El número de WhatsApp se configura en `/adm/configuracion`. Si más adelante se
 - `coupons` — código, tipo (%/monto), valor, vigencia, usos. (Opcional.)
 - `settings` — datos del negocio, número de WhatsApp, stock mínimo por defecto, datos fiscales/ARCA (CUIT, punto de venta), medios de pago.
 - `balances/{YYYY-MM}` — (opcional) caché del balance mensual calculado por una Function.
-- **Carrito: NO va en Firestore.** Vive en `localStorage` (clave `ti-cart`), compartido entre pestañas. Se persiste como `pedido` recién al confirmar. Los "contactos" del admin se derivan agrupando `pedidos` y `ventas` por celular (no hay colección `customers`).
+- **Carrito: NO va en Firestore.** Vive en `localStorage` (clave `ti-cart`), compartido entre pestañas. Se persiste como `pedido` recién al confirmar.
+- **Clientes:** `clientes/{celularNormalizado}` es una proyección resumida para búsquedas y listados de personas que hacen pedidos o compras. Guarda nombre, datos identificatorios, último contacto y contadores de pedidos/ventas/cuentas. No guarda historiales ni reemplaza `pedidos`, `ventas` o `cuentasCobrar`, que siguen siendo las fuentes de verdad. El teléfono normalizado es el ID y se asume un cliente por celular.
+- `contactosAdmin` es independiente y pertenece a la administración/autenticación del panel; no se usa para representar compradores. Los pedidos públicos pueden crear solo el documento inicial de `clientes` y no pueden leerlo ni modificarlo. Las operaciones autenticadas actualizan la proyección; la migración inicial se ejecuta una vez y `contactService.migrarDesdeHistorial()` queda como herramienta interna de recuperación.
 
 ## 8. SEO
 

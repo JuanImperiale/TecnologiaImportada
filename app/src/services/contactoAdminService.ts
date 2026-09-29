@@ -22,7 +22,6 @@ export const contactoAdminService = {
     return run(async () => {
       const key = celular.replace(/\D/g, '');
       if (!key) throw new Error('Celular inválido');
-
       await setDoc(doc(col, key), {
         celular: key,
         nombre: nombre.trim(),

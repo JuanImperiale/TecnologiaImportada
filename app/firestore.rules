@@ -52,5 +52,22 @@ service cloud.firestore {
     match /balances/{id}          { allow read, write: if signedIn(); }
     match /settings/{id}          { allow read: if true; allow write: if signedIn(); }
     match /contactosAdmin/{id}    { allow read, write: if signedIn(); }
+    match /clientes/{id} {
+      // La tienda solo puede crear el cliente mínimo junto con el pedido.
+      // No puede leerlo ni modificar un cliente existente.
+      allow create: if signedIn() || (
+        request.resource.data.keys().hasOnly([
+        'celular', 'nombre', 'nombreOriginal', 'nombreBusqueda',
+        'cantidadPedidos', 'cantidadVentas', 'cantidadCuentas',
+        'ultimoContacto', 'eliminado', 'actualizadoEn'
+        ])
+        && request.resource.data.celular == id
+        && request.resource.data.nombre is string
+        && request.resource.data.celular is string
+        && request.resource.data.eliminado == false
+      );
+      allow read, update, delete: if signedIn();
+    }
+    match /clientesMeta/{id} { allow read, write: if signedIn(); }
   }
 }

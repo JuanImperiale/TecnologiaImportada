@@ -1,23 +1,18 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Search, Plus, X } from 'lucide-react';
-import { pedidoService } from '@/services/pedidoService';
-import { saleService } from '@/services/saleService';
-import { contactoAdminService } from '@/services/contactoAdminService';
+import { contactService } from '@/services/contactService';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { filtrarContactosConfirmados } from '@/lib/utils';
-import type { Pedido, Venta } from '@/models';
-
-interface Contacto {
+interface Cliente {
   celular: string;
   nombre: string;
   cuitDni?: string;
 }
 
 interface ClienteSelectorProps {
-  cliente: Contacto;
-  onChange: (cliente: Contacto) => void;
+  cliente: Cliente;
+  onChange: (cliente: Cliente) => void;
 }
 
 export function ClienteSelector({ cliente, onChange }: ClienteSelectorProps) {
@@ -26,98 +21,31 @@ export function ClienteSelector({ cliente, onChange }: ClienteSelectorProps) {
   const [showNew, setShowNew] = useState(false);
   const [nuevoNombre, setNuevoNombre] = useState('');
   const [nuevoCelular, setNuevoCelular] = useState('');
-  const [customNames, setCustomNames] = useState<Map<string, string>>(new Map());
-  const [contactosEliminados, setContactosEliminados] = useState<Set<string>>(new Set());
-  const [pedidos, setPedidos] = useState<Pedido[]>([]);
-  const [ventas, setVentas] = useState<Venta[]>([]);
-  const [historialSolicitado, setHistorialSolicitado] = useState(false);
-  const [historialCargado, setHistorialCargado] = useState(false);
+  const [candidatos, setCandidatos] = useState<Cliente[]>([]);
   const [cargandoHistorial, setCargandoHistorial] = useState(false);
   const [errorHistorial, setErrorHistorial] = useState<string | null>(null);
 
-  // El historial solo se lee después de confirmar la primera búsqueda.
-  useEffect(() => {
-    if (!historialSolicitado || historialCargado) return;
-    let active = true;
-    const cargarEdiciones = async () => {
-      setCargandoHistorial(true);
-      setErrorHistorial(null);
-      const [respuestaPedidos, respuestaVentas, respuestaEdiciones] = await Promise.all([
-        pedidoService.getAll(),
-        saleService.getAll(),
-        contactoAdminService.getAllEdiciones(),
-      ]);
-      if (!active) return;
-
-      if (respuestaPedidos.ok) setPedidos(respuestaPedidos.data);
-      if (respuestaVentas.ok) setVentas(respuestaVentas.data);
-      const errores: string[] = [];
-      if (!respuestaPedidos.ok) errores.push(respuestaPedidos.error.message);
-      if (!respuestaVentas.ok) errores.push(respuestaVentas.error.message);
-      if (!respuestaEdiciones.ok) errores.push(respuestaEdiciones.error.message);
-      setErrorHistorial(errores.length ? errores.join(' ') : null);
-
-      if (respuestaEdiciones.ok) {
-        const nombres = new Map<string, string>();
-        const eliminados = new Set<string>();
-
-        respuestaEdiciones.data.forEach((edicion, celular) => {
-          if (edicion.eliminado) {
-            eliminados.add(celular);
-          } else if (edicion.nombre) {
-            nombres.set(celular, edicion.nombre);
-          }
-        });
-        
-        setCustomNames(nombres);
-        setContactosEliminados(eliminados);
-      }
-      setHistorialSolicitado(false);
-      setCargandoHistorial(false);
-      setHistorialCargado(respuestaPedidos.ok && respuestaVentas.ok);
-    };
-
-    void cargarEdiciones();
-    return () => { active = false; };
-  }, [historialSolicitado, historialCargado]);
-
-  const contactos = useMemo(() => {
-    const map = new Map<string, Contacto>();
-    const add = (nombre: string, celular: string) => {
-      const key = celular.replace(/\D/g, '');
-      if (!key) return;
-      const c = map.get(key) ?? { celular, nombre };
-      if (nombre && !c.nombre) c.nombre = nombre;
-      map.set(key, c);
-    };
-    pedidos.forEach((p) => add(p.nombre, p.celular));
-    ventas.forEach((v) => v.cliente?.celular && add(v.cliente.nombre ?? '', v.cliente.celular));
-    
-    // Aplicar nombres editados y filtrar eliminados
-    const contactosConEdiciones = [...map.values()]
-      .filter((c) => !contactosEliminados.has(c.celular.replace(/\D/g, '')))
-      .map((c) => ({
-        ...c,
-        nombre: customNames.get(c.celular.replace(/\D/g, '')) ?? c.nombre,
-      }))
-      .sort((a, b) => a.nombre.localeCompare(b.nombre));
-    
-    return contactosConEdiciones;
-  }, [pedidos, ventas, customNames, contactosEliminados]);
-
-  const candidatos = useMemo(() => {
-    if (!historialCargado) return [];
-    return filtrarContactosConfirmados(busqueda, busquedaConfirmada, contactos);
-  }, [busqueda, busquedaConfirmada, contactos, historialCargado]);
-
-  const buscar = () => {
+  const buscar = async () => {
     const term = busqueda.trim();
     if (!term) return;
     setBusquedaConfirmada(term);
-    setHistorialSolicitado(true);
+    setCargandoHistorial(true);
+    setErrorHistorial(null);
+    const resultado = await contactService.search(term);
+    setCargandoHistorial(false);
+    if (resultado.ok) {
+      setCandidatos(resultado.data.map((contacto) => ({
+        nombre: contacto.nombre,
+        celular: contacto.celular,
+        cuitDni: contacto.cuitDni,
+      })));
+    } else {
+      setCandidatos([]);
+      setErrorHistorial(resultado.error.message);
+    }
   };
 
-  const onSelectContacto = (contacto: Contacto) => {
+  const onSelectContacto = (contacto: Cliente) => {
     onChange(contacto);
     setBusqueda('');
     setBusquedaConfirmada('');
@@ -140,6 +68,7 @@ export function ClienteSelector({ cliente, onChange }: ClienteSelectorProps) {
     onChange({ nombre: '', celular: '' });
     setBusqueda('');
     setBusquedaConfirmada('');
+    setCandidatos([]);
   };
 
   return (
@@ -191,7 +120,7 @@ export function ClienteSelector({ cliente, onChange }: ClienteSelectorProps) {
         <p className="text-xs text-text-soft">Cargando contactos registrados…</p>
       )}
       {errorHistorial && <p className="text-xs text-danger">No se pudieron buscar contactos: {errorHistorial}</p>}
-      {historialCargado && busqueda.trim() === busquedaConfirmada && !cargandoHistorial && candidatos.length === 0 && (
+      {busqueda.trim() === busquedaConfirmada && !cargandoHistorial && candidatos.length === 0 && (
         <p className="text-xs text-text-soft">No hay coincidencias. Podés cargar el contacto manualmente.</p>
       )}
 

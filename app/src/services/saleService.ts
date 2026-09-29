@@ -4,6 +4,7 @@ import {
   doc,
   getDocs,
   getDoc,
+  increment,
   limit,
   onSnapshot,
   orderBy,
@@ -197,6 +198,23 @@ export const saleService = {
           vendedorId: auth.currentUser?.email ?? auth.currentUser?.uid ?? '',
           creado: serverTimestamp(),
         });
+
+        const contactoId = input.cliente?.celular?.replace(/\D/g, '');
+        if (contactoId) {
+          tx.set(doc(db, 'clientes', contactoId), {
+            celular: contactoId,
+            ...(input.cliente?.nombre ? {
+              nombreOriginal: input.cliente.nombre,
+              nombre: input.cliente.nombre,
+              nombreBusqueda: input.cliente.nombre.trim().toLocaleLowerCase(),
+            } : {}),
+            ...(input.cliente?.cuitDni ? { cuitDni: input.cliente.cuitDni } : {}),
+            cantidadVentas: increment(1),
+            ultimoContacto: serverTimestamp(),
+            eliminado: false,
+            actualizadoEn: serverTimestamp(),
+          }, { merge: true });
+        }
 
         tx.set(counterRef, { ultimo: numero }, { merge: true });
 

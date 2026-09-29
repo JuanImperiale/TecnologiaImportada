@@ -86,7 +86,7 @@ export interface Pedido {
   id: string;
   nombre: string;
   celular: string;
-  /** Teléfono normalizado (solo dígitos) — clave en la colección contactosAdmin. */
+  /** Teléfono normalizado (solo dígitos) — clave en la colección clientes. */
   contactoId?: string;
   items: ItemCarrito[];
   /** Totales separados por moneda (sin conversión). */

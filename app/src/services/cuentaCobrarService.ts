@@ -2,6 +2,7 @@ import {
   collection,
   doc,
   getDoc,
+  increment,
   onSnapshot,
   orderBy,
   query,
@@ -153,6 +154,21 @@ export const cuentaCobrarService = {
           creadaPor: auth.currentUser?.email ?? auth.currentUser?.uid ?? '',
         });
 
+        const contactoId = input.cliente.celular ? input.cliente.celular.replace(/\D/g, '') : '';
+        if (contactoId) {
+          transaction.set(doc(db, 'clientes', contactoId), {
+            celular: contactoId,
+            nombre: input.cliente.nombre.trim(),
+            nombreOriginal: input.cliente.nombre.trim(),
+            nombreBusqueda: input.cliente.nombre.trim().toLocaleLowerCase(),
+            cuitDni: input.cliente.cuitDni?.trim() ?? '',
+            cantidadCuentas: increment(1),
+            ultimoContacto: serverTimestamp(),
+            eliminado: false,
+            actualizadoEn: serverTimestamp(),
+          }, { merge: true });
+        }
+
         products.forEach((product, index) => {
           const item = items[index];
           transaction.update(productRefs[index], { stock: ((product.data()?.stock as number) ?? 0) - item.cantidad });
@@ -254,6 +270,15 @@ export const cuentaCobrarService = {
         };
 
         transaction.set(ventaRef, { ...venta, registradoEn: serverTimestamp() });
+        const contactoId = cuenta.cliente.celular?.replace(/\D/g, '');
+        if (contactoId) {
+          transaction.set(doc(db, 'clientes', contactoId), {
+            celular: contactoId,
+            cantidadVentas: increment(1),
+            ultimoContacto: cuenta.fechaCompleta,
+            actualizadoEn: serverTimestamp(),
+          }, { merge: true });
+        }
         transaction.set(counterRef, { ultimo: numero }, { merge: true });
         transaction.update(ref, { estado: 'convertida', ventaId: ventaRef.id, numeroVenta: numero });
         return { id: ventaRef.id, numero };

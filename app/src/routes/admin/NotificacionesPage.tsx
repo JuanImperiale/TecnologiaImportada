@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { MessageCircle, Check, X, RotateCcw, Clock, Receipt, Trash2, RefreshCw } from 'lucide-react';
 import { pedidoService } from '@/services/pedidoService';
-import { contactoAdminService } from '@/services/contactoAdminService';
+import { contactService } from '@/services/contactService';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -38,7 +38,7 @@ export function NotificacionesPage() {
   const [cursor, setCursor] = useState<PedidoCursor | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [dia, setDia] = useState('');
-  const [customNames, setCustomNames] = useState<Map<string, string>>(new Map());
+  const [contactNames, setContactNames] = useState<Map<string, string>>(new Map());
   const [toDelete, setToDelete] = useState<Pedido | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -61,21 +61,20 @@ export function NotificacionesPage() {
   useEffect(() => { void cargarPagina(filtro, null, true); }, [filtro, cargarPagina]);
 
   useEffect(() => {
-    const cargarEdiciones = async () => {
-      const res = await contactoAdminService.getAllEdiciones();
-      if (!res.ok) return;
-
+    const celulares = pedidos.map((pedido) => pedido.contactoId ?? pedido.celular);
+    if (celulares.length === 0) {
+      setContactNames(new Map());
+      return;
+    }
+    void contactService.getMany(celulares).then((resultado) => {
+      if (!resultado.ok) return;
       const nombres = new Map<string, string>();
-      res.data.forEach((edicion, celular) => {
-        if (!edicion.eliminado && edicion.nombre?.trim()) {
-          nombres.set(celular, edicion.nombre.trim());
-        }
+      resultado.data.forEach((contacto, celular) => {
+        if (!contacto.eliminado && contacto.nombre.trim()) nombres.set(celular, contacto.nombre.trim());
       });
-      setCustomNames(nombres);
-    };
-
-    void cargarEdiciones();
-  }, []);
+      setContactNames(nombres);
+    });
+  }, [pedidos]);
 
   const canonicalByPhone = useMemo(() => {
     const map = new Map<string, string>();
@@ -89,12 +88,12 @@ export function NotificacionesPage() {
     });
 
     // Prioridad: nombre editado manualmente por admin
-    customNames.forEach((nombre, key) => {
+    contactNames.forEach((nombre, key) => {
       if (nombre?.trim()) map.set(key, nombre.trim());
     });
 
     return map;
-  }, [pedidos, customNames]);
+  }, [pedidos, contactNames]);
 
   const lista = useMemo(() => {
     if (!dia) return pedidos;

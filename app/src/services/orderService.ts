@@ -1,4 +1,4 @@
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { addDoc, collection, doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { run, type Result } from './result';
 import { formatPrice, formatMoney, formatUsd } from '@/lib/utils';
@@ -48,6 +48,24 @@ export const orderService = {
         estado: 'nuevo',
         creado: serverTimestamp(),
       });
+      // El pedido es la fuente pública; el contacto solo se crea si todavía no existe.
+      // Una falla aquí no debe impedir que el cliente complete su consulta.
+      try {
+        await setDoc(doc(db, 'clientes', contactoId), {
+          celular: contactoId,
+          nombre: nombre.trim(),
+          nombreOriginal: nombre.trim(),
+          nombreBusqueda: nombre.trim().toLocaleLowerCase(),
+          cantidadPedidos: 1,
+          cantidadVentas: 0,
+          cantidadCuentas: 0,
+          ultimoContacto: serverTimestamp(),
+          eliminado: false,
+          actualizadoEn: serverTimestamp(),
+        }, { merge: false });
+      } catch {
+        // El contacto existente o una regla que lo rechace no invalida el pedido.
+      }
       return docRef.id;
     });
   },

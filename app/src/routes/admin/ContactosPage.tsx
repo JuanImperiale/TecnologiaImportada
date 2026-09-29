@@ -1,9 +1,7 @@
 import { useCallback, useMemo, useState, useEffect } from 'react';
 import { MessageCircle, Search, User, Edit2, Trash2, Check, X, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
-import { pedidoService, type PedidoCursor } from '@/services/pedidoService';
-import { saleService, type VentaCursor } from '@/services/saleService';
-import { contactoAdminService } from '@/services/contactoAdminService';
+import { contactService, type Contacto, type ContactoPage } from '@/services/contactService';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -11,153 +9,59 @@ import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ConfirmDialog } from '@/components/ui/Modal';
 import { formatDate, toDate } from '@/lib/utils';
-import type { Pedido, Venta } from '@/models';
-
-interface Contacto {
-  celular: string;
-  nombre: string;
-  consultas: number;
-  ventas: number;
-  ultimo: Date;
-}
 
 export function ContactosPage() {
-  const [pedidos, setPedidos] = useState<Pedido[]>([]);
-  const [ventas, setVentas] = useState<Venta[]>([]);
+  const [contactos, setContactos] = useState<Contacto[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pedidoCursor, setPedidoCursor] = useState<PedidoCursor | null>(null);
-  const [ventaCursor, setVentaCursor] = useState<VentaCursor | null>(null);
-  const [hasMorePedidos, setHasMorePedidos] = useState(false);
-  const [hasMoreVentas, setHasMoreVentas] = useState(false);
+  const [cursor, setCursor] = useState<ContactoPage['cursor']>(null);
+  const [hasMore, setHasMore] = useState(false);
   const [q, setQ] = useState('');
   const [editingCelular, setEditingCelular] = useState<string | null>(null);
   const [editingNombre, setEditingNombre] = useState('');
   const [saving, setSaving] = useState(false);
-  const [customNames, setCustomNames] = useState<Map<string, string>>(new Map());
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [contactosEliminados, setContactosEliminados] = useState<Set<string>>(new Set());
 
-  const cargarActividad = useCallback(async (
-    cursorPedidos: PedidoCursor | null,
-    cursorVentas: VentaCursor | null,
-    reemplazar: boolean,
-    incluirPedidos = true,
-    incluirVentas = true,
-  ) => {
+  const cargarContactos = useCallback(async (desde: Parameters<typeof contactService.getPage>[1], reemplazar: boolean) => {
     if (reemplazar) setLoading(true);
     else setLoadingMore(true);
-    const [respuestaPedidos, respuestaVentas] = await Promise.all([
-      incluirPedidos ? pedidoService.getPage('todos', 30, cursorPedidos) : Promise.resolve(null),
-      incluirVentas ? saleService.getPage(30, cursorVentas) : Promise.resolve(null),
-    ]);
-    let mensajeError: string | null = null;
-    if (respuestaPedidos?.ok) {
-      setPedidos((actuales) => reemplazar ? respuestaPedidos.data.pedidos : [...actuales, ...respuestaPedidos.data.pedidos]);
-      setPedidoCursor(respuestaPedidos.data.cursor);
-      setHasMorePedidos(respuestaPedidos.data.hasMore);
-    } else if (respuestaPedidos) {
-      mensajeError = respuestaPedidos.error.message;
-    }
-    if (respuestaVentas?.ok) {
-      setVentas((actuales) => reemplazar ? respuestaVentas.data.ventas : [...actuales, ...respuestaVentas.data.ventas]);
-      setVentaCursor(respuestaVentas.data.cursor);
-      setHasMoreVentas(respuestaVentas.data.hasMore);
-    } else if (respuestaVentas) {
-      mensajeError ??= respuestaVentas.error.message;
-    }
-    setError(mensajeError);
+    const resultado = await contactService.getPage(30, desde);
+    if (resultado.ok) {
+      setContactos((actuales) => reemplazar ? resultado.data.contactos : [...actuales, ...resultado.data.contactos]);
+      setCursor(resultado.data.cursor);
+      setHasMore(resultado.data.hasMore);
+      setError(null);
+    } else setError(resultado.error.message);
     setLoading(false);
     setLoadingMore(false);
   }, []);
 
-  useEffect(() => { void cargarActividad(null, null, true); }, [cargarActividad]);
-
-  const cargarMas = () => {
-    void cargarActividad(
-      hasMorePedidos ? pedidoCursor : null,
-      hasMoreVentas ? ventaCursor : null,
-      false,
-      hasMorePedidos,
-      hasMoreVentas,
-    );
-  };
-
-  // Cargar ediciones y eliminaciones guardadas de Firestore al montar
-  useEffect(() => {
-    const cargarEdiciones = async () => {
-      const res = await contactoAdminService.getAllEdiciones();
-      if (res.ok) {
-        const nombres = new Map<string, string>();
-        const eliminados = new Set<string>();
-        
-        res.data.forEach((edicion, celular) => {
-          if (edicion.eliminado) {
-            eliminados.add(celular);
-          } else if (edicion.nombre) {
-            nombres.set(celular, edicion.nombre);
-          }
-        });
-        
-        setCustomNames(nombres);
-        setContactosEliminados(eliminados);
-      }
-    };
-    
-    cargarEdiciones();
-  }, []);
-
-  const contactos = useMemo(() => {
-    const map = new Map<string, Contacto>();
-    const add = (nombre: string, celular: string, fecha: Date, tipo: 'consulta' | 'venta') => {
-      const key = celular.replace(/\D/g, '');
-      if (!key) return;
-      const c = map.get(key) ?? { celular, nombre, consultas: 0, ventas: 0, ultimo: fecha };
-      if (tipo === 'consulta') c.consultas += 1;
-      else c.ventas += 1;
-      if (fecha > c.ultimo) c.ultimo = fecha;
-      if (nombre && !c.nombre) c.nombre = nombre;
-      map.set(key, c);
-    };
-    pedidos.forEach((p) => add(p.nombre, p.celular, toDate(p.creado), 'consulta'));
-    ventas.forEach((v) => v.cliente?.celular && add(v.cliente.nombre ?? '', v.cliente.celular, toDate(v.creado), 'venta'));
-    return [...map.values()].sort((a, b) => b.ultimo.getTime() - a.ultimo.getTime());
-  }, [pedidos, ventas]);
-
-  const contactosConEdiciones = useMemo(
-    () =>
-      contactos
-        .filter((c) => !contactosEliminados.has(c.celular.replace(/\D/g, '')))
-        .map((c) => ({
-          ...c,
-          nombreMostrado: customNames.get(c.celular.replace(/\D/g, '')) ?? c.nombre,
-        })),
-    [contactos, customNames, contactosEliminados],
-  );
+  useEffect(() => { void cargarContactos(null, true); }, [cargarContactos]);
 
   const lista = useMemo(() => {
     const term = q.trim().toLowerCase();
-    if (!term) return contactosConEdiciones;
-    return contactosConEdiciones.filter(
-      (c) => c.nombreMostrado.toLowerCase().includes(term) || c.celular.includes(term),
+    if (!term) return contactos;
+    return contactos.filter(
+      (c) => c.nombre.toLowerCase().includes(term) || c.celular.includes(term),
     );
-  }, [contactosConEdiciones, q]);
+  }, [contactos, q]);
 
-  const onEditStart = (c: (typeof contactosConEdiciones)[0]) => {
+  const onEditStart = (c: Contacto) => {
     setEditingCelular(c.celular);
-    setEditingNombre(c.nombreMostrado);
+    setEditingNombre(c.nombre);
   };
 
   const onEditSave = async () => {
     if (!editingCelular || !editingNombre.trim()) return;
     setSaving(true);
-    const res = await contactoAdminService.saveEdicion(editingCelular, editingNombre);
+    const res = await contactService.save(editingCelular, { nombre: editingNombre });
     setSaving(false);
     if (res.ok) {
-      const key = editingCelular.replace(/\D/g, '');
-      setCustomNames((prev) => new Map(prev).set(key, editingNombre.trim()));
+      setContactos((prev) => prev.map((contacto) => contacto.celular === editingCelular
+        ? { ...contacto, nombre: editingNombre.trim() }
+        : contacto));
       setEditingCelular(null);
       toast.success('Contacto actualizado');
     } else {
@@ -172,11 +76,10 @@ export function ContactosPage() {
   const onDeleteConfirm = async () => {
     if (!deleteConfirm) return;
     setDeleting(true);
-    const res = await contactoAdminService.deleteContacto(deleteConfirm);
+    const res = await contactService.save(deleteConfirm, { eliminado: true });
     setDeleting(false);
     if (res.ok) {
-      const key = deleteConfirm.replace(/\D/g, '');
-      setContactosEliminados((prev) => new Set(prev).add(key));
+      setContactos((prev) => prev.filter((contacto) => contacto.celular !== deleteConfirm));
       setDeleteConfirm(null);
       toast.success('Contacto eliminado');
     } else {
@@ -190,7 +93,7 @@ export function ContactosPage() {
     <div className="mx-auto max-w-2xl">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold tracking-tight">Contactos</h1>
-        <Button variant="ghost" size="sm" onClick={() => void cargarActividad(null, null, true)} disabled={loading}>
+        <Button variant="ghost" size="sm" onClick={() => void cargarContactos(null, true)} disabled={loading}>
           <RefreshCw size={15} aria-hidden="true" /> Actualizar
         </Button>
       </div>
@@ -199,7 +102,7 @@ export function ContactosPage() {
         <Input placeholder="Buscar por nombre o celular…" value={q} onChange={(e) => setQ(e.target.value)} className="pl-9" />
       </div>
       <p className="mb-3 text-xs text-text-soft">
-        Los conteos y la búsqueda corresponden a los registros cargados. Cargá más actividad para ampliar contactos anteriores.
+        Los contactos se cargan por páginas y la búsqueda filtra los registros ya cargados.
       </p>
 
       {error ? (
@@ -223,10 +126,10 @@ export function ContactosPage() {
                       autoFocus
                     />
                   ) : (
-                    <p className="truncate font-medium">{c.nombreMostrado || 'Sin nombre'}</p>
+                    <p className="truncate font-medium">{c.nombre || 'Sin nombre'}</p>
                   )}
                   <p className="text-sm text-text-soft">
-                    {c.celular} · {c.consultas} consulta(s) · {c.ventas} venta(s) · últ. {formatDate(c.ultimo)}
+                    {c.celular} · {c.cantidadPedidos} consulta(s) · {c.cantidadVentas} venta(s) · últ. {c.ultimoContacto ? formatDate(toDate(c.ultimoContacto)) : 'sin fecha'}
                   </p>
                 </div>
                 {isEditing ? (
@@ -284,10 +187,10 @@ export function ContactosPage() {
         </div>
       )}
 
-      {(hasMorePedidos || hasMoreVentas) && !error && (
+      {hasMore && !error && (
         <div className="mt-4 flex justify-center">
-          <Button variant="ghost" onClick={cargarMas} loading={loadingMore} disabled={loadingMore}>
-            Cargar actividad anterior
+          <Button variant="ghost" onClick={() => void cargarContactos(cursor, false)} loading={loadingMore} disabled={loadingMore}>
+            Cargar más contactos
           </Button>
         </div>
       )}
