@@ -54,7 +54,7 @@ export function QrInventarioPage() {
 
   useEffect(() => {
     const term = q.trim();
-    if (!term) return;
+    if (!term && !categoriaId) return;
     let active = true;
     const timer = window.setTimeout(() => {
       setLoading(true);
@@ -73,7 +73,7 @@ export function QrInventarioPage() {
       active = false;
       window.clearTimeout(timer);
     };
-  }, [q]);
+  }, [q, categoriaId]);
 
   const categoriasUnidad = useMemo(() => {
     return categorias.filter((category) => category.negocio === negocio);
@@ -85,7 +85,7 @@ export function QrInventarioPage() {
         .filter(
           (p) =>
             p.negocio === negocio &&
-            (!categoriaId || p.categoriaId === categoriaId) &&
+            (!categoriaId || p.categoriaId === categoriaId || matchesSearch(catMap.get(categoriaId) ?? '', p.categoria, catMap.get(p.categoriaId))) &&
             matchesSearch(q, p.nombre, p.sku, catMap.get(p.categoriaId) ?? p.categoria),
         )
         .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
@@ -180,7 +180,11 @@ export function QrInventarioPage() {
         <Select
           aria-label="Categoría"
           value={categoriaId}
-          onChange={(e) => setCategoriaId(e.target.value)}
+          onChange={(e) => {
+            const value = e.target.value;
+            setCategoriaId(value);
+            if (!value && !q.trim()) void cargarPagina(null, true);
+          }}
           placeholder="Todas las categorías"
           options={categoriasUnidad.map((c) => ({ value: c.id, label: c.nombre }))}
         />

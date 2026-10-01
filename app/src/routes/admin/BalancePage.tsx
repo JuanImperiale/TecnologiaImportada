@@ -40,10 +40,14 @@ function BloqueUnidad({
   titulo,
   bloque,
   fmt,
+  ajustes,
+  neta,
 }: {
   titulo: string;
   bloque: { ingresos: { productos: number; accesorios: number }; costo: { productos: number; accesorios: number }; margen: { productos: number; accesorios: number; total: number } };
   fmt: Fmt;
+  ajustes: { label: string; monto: number }[];
+  neta: number;
 }) {
   return (
     <Card>
@@ -72,6 +76,20 @@ function BloqueUnidad({
               <td></td>
               <td></td>
               <td className="py-2 text-right font-extrabold">{fmt(bloque.margen.total)}</td>
+            </tr>
+            {ajustes.map(({ label, monto }) => (
+              <tr key={label} className="border-t border-line">
+                <td className="py-2 font-medium">{label}</td>
+                <td></td>
+                <td></td>
+                <td className="py-2 text-right">{monto < 0 ? `−${fmt(-monto)}` : fmt(monto)}</td>
+              </tr>
+            ))}
+            <tr className="border-t-2 border-line-strong">
+              <td className="py-2 font-bold">Ganancia final del mes</td>
+              <td></td>
+              <td></td>
+              <td className="py-2 text-right font-extrabold">{fmt(neta)}</td>
             </tr>
           </tbody>
         </table>
@@ -123,7 +141,7 @@ export function BalancePage() {
                 <Metric label="Vendido" value={formatUsd(b.usd.ingresos.total)} />
                 <Metric label="Costo" value={formatUsd(b.usd.costo.total)} />
                 <Metric label="Margen bruto" value={formatUsd(b.usd.margen.total)} />
-                {b.regalos.usd > 0 && <Metric label="Regalos" value={`−${formatUsd(b.regalos.usd)}`} />}
+                <Metric label="Regalos" value={b.regalos.usd > 0 ? `−${formatUsd(b.regalos.usd)}` : formatUsd(0)} />
                 <Metric label="Ganancia en USD" value={formatUsd(b.netaUsd)} strong />
               </div>
             </div>
@@ -135,7 +153,7 @@ export function BalancePage() {
                 <Metric label="Margen bruto" value={formatMoney(b.ars.margen.total)} />
                 <Metric label="Envíos" value={formatMoney(b.envios)} />
                 {b.descuentosArs > 0 && <Metric label="Descuentos efectivo" value={`−${formatMoney(b.descuentosArs)}`} />}
-                {b.regalos.ars > 0 && <Metric label="Regalos" value={`−${formatMoney(b.regalos.ars)}`} />}
+                <Metric label="Regalos" value={b.regalos.ars > 0 ? `−${formatMoney(b.regalos.ars)}` : formatMoney(0)} />
                 <Metric label="Gastos" value={formatMoney(b.gastos)} />
                 <Metric label="Ganancia en $" value={formatMoney(b.netaArs)} strong />
               </div>
@@ -143,11 +161,17 @@ export function BalancePage() {
           </div>
 
           {/* Detalle por unidad, por moneda */}
-          {b.usd.ingresos.total > 0 || b.usd.costo.total > 0 ? (
-            <BloqueUnidad titulo="Dólares — Productos vs Accesorios" bloque={b.usd} fmt={formatUsd} />
+          {b.usd.ingresos.total > 0 || b.usd.costo.total > 0 || b.regalos.usd > 0 ? (
+            <BloqueUnidad titulo="Dólares — Productos vs Accesorios" bloque={b.usd} fmt={formatUsd}
+              ajustes={[{ label: 'Regalos', monto: -b.regalos.usd }]} neta={b.netaUsd} />
           ) : null}
-          {b.ars.ingresos.total > 0 || b.ars.costo.total > 0 ? (
-            <BloqueUnidad titulo="Pesos — Productos vs Accesorios" bloque={b.ars} fmt={formatMoney} />
+          {b.ars.ingresos.total > 0 || b.ars.costo.total > 0 || b.envios > 0 || b.regalos.ars > 0 || b.gastos > 0 ? (
+            <BloqueUnidad titulo="Pesos — Productos vs Accesorios" bloque={b.ars} fmt={formatMoney}
+              ajustes={[
+                { label: 'Envíos', monto: b.envios },
+                { label: 'Regalos', monto: -b.regalos.ars },
+                { label: 'Gastos', monto: -b.gastos },
+              ]} neta={b.netaArs} />
           ) : null}
 
           {/* Bonificaciones */}

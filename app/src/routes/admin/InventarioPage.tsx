@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Plus, Search, Pencil, Trash2, ImageOff, AlertTriangle, QrCode, Printer, Copy, ExternalLink, RefreshCw } from 'lucide-react';
@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Switch } from '@/components/ui/Switch';
+import { Select } from '@/components/ui/Select';
 import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ConfirmDialog, Modal } from '@/components/ui/Modal';
@@ -29,11 +30,17 @@ export function InventarioPage() {
   const { categories } = useCategories(negocio);
   const catMap = useMemo(() => new Map(categories.map((c) => [c.id, c.nombre])), [categories]);
   const [q, setQ] = useState('');
+  const [soloStockBajo, setSoloStockBajo] = useState(false);
+  const [categoriaId, setCategoriaId] = useState('');
+  const [stockBajoTotal, setStockBajoTotal] = useState(0);
+  const requestId = useRef(0);
 
   const cargarPagina = useCallback(async (unidad: Negocio, desde: ProductoCursor | null, reemplazar: boolean) => {
+    const currentRequest = ++requestId.current;
     if (reemplazar) setLoading(true);
     else setLoadingMore(true);
     const resultado = await productService.getInventoryPage(unidad, 30, desde);
+    if (currentRequest !== requestId.current) return;
     if (resultado.ok) {
       setProducts((actuales) => reemplazar ? resultado.data.products : [...actuales, ...resultado.data.products]);
       setCursor(resultado.data.cursor);
@@ -47,43 +54,59 @@ export function InventarioPage() {
   }, []);
 
   useEffect(() => {
-    setQ('');
-    void cargarPagina(negocio, null, true);
-  }, [negocio, cargarPagina]);
+    const term = q.trim();
+    const currentRequest = ++requestId.current;
+    const cargar = async () => {
+      setLoading(true);
+      const resultado = term || soloStockBajo || categoriaId
+        ? await productService.searchAll({ negocio })
+        : await productService.getInventoryPage(negocio, 30, null);
+      if (currentRequest !== requestId.current) return;
+      if (resultado.ok) {
+        const products = 'products' in resultado.data ? resultado.data.products : resultado.data;
+        setProducts(products);
+        setCursor('cursor' in resultado.data ? resultado.data.cursor : null);
+        setHasMore('hasMore' in resultado.data ? resultado.data.hasMore : false);
+        setError(null);
+      } else setError(resultado.error.message);
+      setLoading(false);
+    };
+    if (!term) {
+      void cargar();
+      return;
+    }
+    const timer = window.setTimeout(() => void cargar(), 250);
+    return () => window.clearTimeout(timer);
+  }, [q, negocio, soloStockBajo, categoriaId]);
 
   useEffect(() => {
-    const term = q.trim();
-    if (!term) return;
     let active = true;
-    const timer = window.setTimeout(() => {
-      setLoading(true);
-      void productService.searchAll({ negocio }).then((resultado) => {
-        if (!active) return;
-        if (resultado.ok) {
-          setProducts(resultado.data);
-          setCursor(null);
-          setHasMore(false);
-          setError(null);
-        } else {
-          setError(resultado.error.message);
-        }
-        setLoading(false);
-      });
-    }, 250);
-    return () => {
-      active = false;
-      window.clearTimeout(timer);
-    };
-  }, [q, negocio]);
+    void productService.searchAll({ negocio }).then((resultado) => {
+      if (!active) return;
+      if (resultado.ok) {
+        setStockBajoTotal(resultado.data.filter((product) => product.activo && product.stock <= product.stockMinimo).length);
+      }
+    });
+    return () => { active = false; };
+  }, [negocio]);
 
   const filtered = useMemo(() => {
-    if (!q.trim()) return products;
-    return products.filter((p) =>
+    const filteredProducts = !q.trim() ? products : products.filter((p) =>
       matchesSearch(q, p.nombre, p.sku, catMap.get(p.categoriaId) ?? p.categoria),
     );
-  }, [products, q, catMap]);
+    const categoria = categories.find((item) => item.id === categoriaId);
+    const withCategory = categoriaId
+      ? filteredProducts.filter((p) => p.categoriaId === categoriaId || matchesSearch(categoria?.nombre ?? '', p.categoria, catMap.get(p.categoriaId)))
+      : filteredProducts;
+    return soloStockBajo
+      ? withCategory.filter((p) => p.activo && p.stock <= p.stockMinimo)
+      : withCategory;
+  }, [products, q, catMap, soloStockBajo, categoriaId, categories]);
 
-  const stockBajo = filtered.filter((p) => p.activo && p.stock <= p.stockMinimo).length;
+  const cambiarStockBajo = () => {
+    const next = !soloStockBajo;
+    setSoloStockBajo(next);
+  };
 
   const [toDelete, setToDelete] = useState<Producto | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -120,9 +143,9 @@ export function InventarioPage() {
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Inventario</h1>
-          {stockBajo > 0 && (
+          {stockBajoTotal > 0 && (
             <p className="mt-1 flex items-center gap-1.5 text-sm text-warning">
-              <AlertTriangle size={15} aria-hidden="true" /> {stockBajo} con stock bajo en esta página
+              <AlertTriangle size={15} aria-hidden="true" /> {stockBajoTotal} con stock bajo en {negocio === 'productos' ? 'Productos' : 'Accesorios'}
             </p>
           )}
         </div>
@@ -130,14 +153,14 @@ export function InventarioPage() {
           <Button variant="ghost" size="sm" onClick={() => void cargarPagina(negocio, null, true)} disabled={loading}>
             <RefreshCw size={15} aria-hidden="true" /> Actualizar
           </Button>
-          <UnitTabs value={negocio} onChange={setNegocio} />
+          <UnitTabs value={negocio} onChange={(unidad) => { setQ(''); setCategoriaId(''); setSoloStockBajo(false); setNegocio(unidad); }} />
         </div>
       </div>
       <p className="mb-3 text-xs text-text-soft">
-        El buscador revisa todos los productos de la unidad seleccionada.
+        El buscador revisa todos los productos de la unidad seleccionada. Stock bajo usa el mínimo configurado en cada producto.
       </p>
 
-      <div className="mb-4 flex flex-wrap items-center gap-3">
+      <div className="mb-4 grid gap-3 sm:grid-cols-[1fr_240px_auto]">
         <div className="relative min-w-[220px] flex-1">
           <Search
             size={17}
@@ -150,16 +173,26 @@ export function InventarioPage() {
             onChange={(e) => {
               const value = e.target.value;
               setQ(value);
-              if (!value.trim()) void cargarPagina(negocio, null, true);
+              if (!value.trim()) setSoloStockBajo(false);
             }}
             className="pl-9"
           />
         </div>
-        <Link to={`/adm/inventario/nuevo?negocio=${negocio}`}>
+          <Select
+            aria-label="Categoría"
+            value={categoriaId}
+            onChange={(e) => setCategoriaId(e.target.value)}
+            placeholder="Todas las categorías"
+            options={categories.map((category) => ({ value: category.id, label: category.nombre }))}
+          />
+          <Link to={`/adm/inventario/nuevo?negocio=${negocio}`}>
           <Button>
             <Plus size={16} aria-hidden="true" /> Nuevo producto
           </Button>
-        </Link>
+          </Link>
+          <Button variant={soloStockBajo ? 'primary' : 'ghost'} onClick={cambiarStockBajo}>
+            <AlertTriangle size={16} aria-hidden="true" /> Stock bajo
+          </Button>
       </div>
 
       {loading ? (
@@ -234,7 +267,7 @@ export function InventarioPage() {
         </div>
       )}
 
-      {!loading && !error && hasMore && (
+      {!loading && !error && hasMore && !soloStockBajo && (
         <div className="mt-4 flex justify-center">
           <Button variant="ghost" onClick={() => void cargarPagina(negocio, cursor, false)} loading={loadingMore} disabled={loadingMore}>
             Cargar 30 productos más

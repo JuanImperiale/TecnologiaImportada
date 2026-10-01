@@ -53,6 +53,16 @@ export function printComprobante(venta: Venta, nombreNegocio: string) {
     .total td{font-weight:800;border-top:2px solid #171717;border-bottom:none;padding-top:10px}
     .head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #171717;padding-bottom:10px}
     .foot{margin-top:18px;font-size:12px;color:#6b6a64;text-align:center}
+    @page{size:letter;margin:14mm}
+    @media print{
+      body{width:100%;max-width:none;margin:0;padding:0;font-size:12pt}
+      h1{font-size:24pt}
+      .muted{font-size:11pt}
+      table{font-size:12pt;margin-top:18px}
+      td{padding:9px 0}
+      .total td{padding-top:12px}
+      .foot{font-size:10pt;margin-top:24px}
+    }
   </style></head><body>
     <div class="head">
       <div><h1>${escapeHtml(nombreNegocio || 'Tecnología Importada')}</h1><div class="muted">Comprobante de venta</div></div>

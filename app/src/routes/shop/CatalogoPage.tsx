@@ -61,7 +61,7 @@ export function CatalogoPage() {
 
   useEffect(() => {
     const term = search.trim();
-    if (!term) return;
+    if (!term && !categoriaId) return;
     let active = true;
     const timer = window.setTimeout(() => {
       setLoading(true);
@@ -80,7 +80,7 @@ export function CatalogoPage() {
       active = false;
       window.clearTimeout(timer);
     };
-  }, [search]);
+  }, [search, categoriaId]);
 
   // Categories are independent of the products loaded in the current pages.
   const categoriasUnidad = useMemo(() => {
@@ -155,7 +155,10 @@ export function CatalogoPage() {
           <div className="flex min-w-max gap-2 sm:min-w-0 sm:flex-wrap sm:justify-center">
             <button
               type="button"
-              onClick={() => setCategoriaId('')}
+              onClick={() => {
+                setCategoriaId('');
+                if (!search.trim()) void cargarPagina(null, true);
+              }}
               className={cn(
                 'whitespace-nowrap rounded-pill border px-4 py-1.5 text-sm font-medium transition-colors',
                 !categoriaId
