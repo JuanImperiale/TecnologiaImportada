@@ -11,15 +11,32 @@ import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Spinner } from '@/components/ui/Spinner';
-import { formatDate, formatPrice, matchesSearch, toDate } from '@/lib/utils';
+import { formatDate, formatPrice, matchesSearch, monthKey, toDate } from '@/lib/utils';
 import type { Producto, Regalo, Venta } from '@/models';
+import { Select } from '@/components/ui/Select';
 
 interface LineaRegalo {
   producto: Producto;
   cantidad: number;
 }
 
+const MONTH_OPTIONS = [
+  { value: '01', label: 'Enero' },
+  { value: '02', label: 'Febrero' },
+  { value: '03', label: 'Marzo' },
+  { value: '04', label: 'Abril' },
+  { value: '05', label: 'Mayo' },
+  { value: '06', label: 'Junio' },
+  { value: '07', label: 'Julio' },
+  { value: '08', label: 'Agosto' },
+  { value: '09', label: 'Septiembre' },
+  { value: '10', label: 'Octubre' },
+  { value: '11', label: 'Noviembre' },
+  { value: '12', label: 'Diciembre' },
+];
+
 export function RegalosPage() {
+  const [ym, setYm] = useState(monthKey(new Date()));
   const [busqueda, setBusqueda] = useState('');
   const [lineas, setLineas] = useState<LineaRegalo[]>([]);
   const [ventaNumero, setVentaNumero] = useState('');
@@ -34,11 +51,19 @@ export function RegalosPage() {
   const [cursor, setCursor] = useState<RegaloCursor | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const { all, catMap, loading: loadingCatalog } = useCatalog({ loadProducts: true });
+  const [year, month] = ym.split('-');
+  const yearOptions = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    return Array.from({ length: 6 }, (_, idx) => {
+      const value = String(currentYear - idx);
+      return { value, label: value };
+    });
+  }, []);
 
   const cargar = useCallback(async (desde: RegaloCursor | null, reemplazar: boolean) => {
     if (reemplazar) setLoading(true);
     else setLoadingMore(true);
-    const resultado = await regaloService.getPage(30, desde);
+    const resultado = await regaloService.getPage(30, ym, desde);
     if (resultado.ok) {
       setRegalos((actuales) => reemplazar ? resultado.data.regalos : [...actuales, ...resultado.data.regalos]);
       setCursor(resultado.data.cursor);
@@ -47,7 +72,7 @@ export function RegalosPage() {
     } else setError(resultado.error.message);
     setLoading(false);
     setLoadingMore(false);
-  }, []);
+  }, [ym]);
 
   useEffect(() => { void cargar(null, true); }, [cargar]);
 
@@ -153,9 +178,13 @@ export function RegalosPage() {
           <h1 className="text-2xl font-bold tracking-tight">{editingId ? 'Editar regalo' : 'Regalos'}</h1>
           <p className="mt-1 text-sm text-text-soft">Registrá accesorios entregados sin cargo y controlá su costo.</p>
         </div>
-        <Button variant="ghost" size="sm" onClick={() => void cargar(null, true)} disabled={loading}>
-          <RefreshCw size={15} aria-hidden="true" /> Actualizar
-        </Button>
+        <div className="grid w-full gap-3 sm:w-auto sm:grid-cols-3 sm:items-end">
+          <Select label="Mes" value={month} onChange={(e) => setYm(`${year}-${e.target.value}`)} options={MONTH_OPTIONS} />
+          <Select label="Año" value={year} onChange={(e) => setYm(`${e.target.value}-${month}`)} options={yearOptions} />
+          <Button variant="ghost" size="sm" onClick={() => void cargar(null, true)} disabled={loading}>
+            <RefreshCw size={15} aria-hidden="true" /> Actualizar
+          </Button>
+        </div>
       </div>
 
       <Card className="mb-5">
@@ -211,13 +240,12 @@ export function RegalosPage() {
               <Link2 size={15} aria-hidden="true" /> Vincular venta
             </Button>
             {venta && <p className="w-full text-sm text-success">Venta #{venta.numero} vinculada.</p>}
-          </div>
-
-          <div className="flex justify-end gap-2">
-            {editingId && <Button variant="ghost" onClick={cancelarEdicion} disabled={guardando}>Cancelar</Button>}
-            <Button onClick={registrar} loading={guardando} disabled={guardando || lineas.length === 0}>
-              <Plus size={16} aria-hidden="true" /> {editingId ? 'Guardar cambios' : 'Registrar regalo'}
-            </Button>
+            <div className="ml-auto flex gap-2">
+              {editingId && <Button variant="ghost" onClick={cancelarEdicion} disabled={guardando}>Cancelar</Button>}
+              <Button onClick={registrar} loading={guardando} disabled={guardando || lineas.length === 0}>
+                <Plus size={16} aria-hidden="true" /> {editingId ? 'Guardar cambios' : 'Registrar regalo'}
+              </Button>
+            </div>
           </div>
         </CardBody>
       </Card>

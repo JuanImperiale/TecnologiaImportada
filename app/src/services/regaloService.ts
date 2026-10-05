@@ -218,12 +218,24 @@ export const regaloService = {
     }
   },
 
-  async getPage(pageSize = 30, cursor?: RegaloCursor | null): Promise<Result<RegaloPage>> {
+  async getPage(pageSize: number, ym: string, cursor?: RegaloCursor | null): Promise<Result<RegaloPage>> {
     try {
       const size = Math.max(1, Math.min(pageSize, 100));
+      const { start, end } = monthDateRange(ym);
       const constraints = cursor
-        ? [orderBy('creado', 'desc'), startAfter(cursor), limit(size)]
-        : [orderBy('creado', 'desc'), limit(size)];
+        ? [
+            where('creado', '>=', Timestamp.fromDate(start)),
+            where('creado', '<', Timestamp.fromDate(end)),
+            orderBy('creado', 'desc'),
+            startAfter(cursor),
+            limit(size),
+          ]
+        : [
+            where('creado', '>=', Timestamp.fromDate(start)),
+            where('creado', '<', Timestamp.fromDate(end)),
+            orderBy('creado', 'desc'),
+            limit(size),
+          ];
       const snapshot = await getDocs(query(col, ...constraints));
       return ok({
         regalos: snapshot.docs.map(mapRegalo),
