@@ -91,4 +91,66 @@
     font: 600 7.5pt/1.2 var(--ti-font-sans, sans-serif);
     text-align: center;
   }
+
+  body.balance-printing {
+    background: #fff;
+  }
+
+  body.balance-printing,
+  body.balance-printing #root {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  body.balance-printing #root :has(#balance-report) {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  body.balance-printing #root,
+  body.balance-printing #root * {
+    visibility: hidden !important;
+  }
+
+  body.balance-printing #balance-report,
+  body.balance-printing #balance-report * {
+    visibility: visible !important;
+  }
+
+  body.balance-printing #balance-report {
+    position: relative !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    color: #111 !important;
+  }
+
+  body.balance-printing .balance-no-print {
+    display: none !important;
+  }
+
+  body.balance-printing .balance-print-period {
+    display: block !important;
+  }
+
+  body.balance-printing #balance-report .overflow-x-auto {
+    overflow: visible !important;
+  }
+
+  body.balance-printing #balance-report [class*='shadow-'] {
+    box-shadow: none !important;
+  }
+
+  body.balance-printing #balance-report table,
+  body.balance-printing #balance-report tr,
+  body.balance-printing #balance-report .rounded-lg {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
+
+.balance-print-period {
+  display: none;
 }

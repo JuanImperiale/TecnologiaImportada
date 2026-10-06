@@ -13,6 +13,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { cn, formatMoney, formatUsd, formatDate, monthKey } from '@/lib/utils';
 import { medioPagoLabel } from '@/lib/mediosPago';
 import { exportarVentasCsv } from '@/lib/ventasCsv';
+import { coincideFiltroFacturacion, type FiltroFacturacion } from '@/lib/ventas';
 import type { Venta } from '@/models';
 
 function ventaFecha(v: Venta): Date {
@@ -46,6 +47,7 @@ export function VentasPage() {
   const [exportando, setExportando] = useState(false);
   const [q, setQ] = useState('');
   const [estado, setEstado] = useState<FiltroEstado>('todas');
+  const [facturacion, setFacturacion] = useState<FiltroFacturacion>('todas');
   const [mesExportacion, setMesExportacion] = useState(() => monthKey(new Date()).slice(5));
   const [anioExportacion, setAnioExportacion] = useState(() => monthKey(new Date()).slice(0, 4));
 
@@ -74,11 +76,12 @@ export function VentasPage() {
     return ventas.filter(
       (v) =>
         (estado === 'todas' || v.estado === estado) &&
+        coincideFiltroFacturacion(v.facturacion?.estado, facturacion) &&
         (!term ||
           String(v.numero).includes(term) ||
           (v.cliente?.nombre ?? '').toLowerCase().includes(term)),
     );
-  }, [ventas, q, estado]);
+  }, [ventas, q, estado, facturacion]);
 
   const anios = useMemo(() => {
     const currentYear = new Date().getFullYear();
@@ -168,6 +171,17 @@ export function VentasPage() {
             {f}
           </button>
         ))}
+        <Select
+          label="Facturación"
+          value={facturacion}
+          onChange={(event) => setFacturacion(event.target.value as FiltroFacturacion)}
+          options={[
+            { value: 'todas', label: 'Todas' },
+            { value: 'facturada', label: 'Facturadas' },
+            { value: 'sin_facturar', label: 'Sin facturar' },
+          ]}
+          className="min-w-[150px]"
+        />
       </div>
 
       {loading ? (

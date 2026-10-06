@@ -39,11 +39,23 @@ vi.mock('@/hooks/useVentas', () => ({ useVentas: () => ({ ventas: testState.with
 vi.mock('@/hooks/useGastos', () => ({ useGastos: () => ({ gastos, loading: false }) }));
 vi.mock('@/hooks/useRegalos', () => ({ useRegalos: () => ({ regalos, loading: false }) }));
 
+function tableAfter(html: string, title: string): string {
+  const position = html.indexOf(title);
+  return position < 0 ? '' : html.slice(position).match(/<table\b[\s\S]*?<\/table>/)?.[0] ?? '';
+}
+
 describe('BalancePage', () => {
   it('shows post-margin adjustments and monthly net for each currency without subtracting included costs twice', () => {
     const html = renderToStaticMarkup(<BalancePage />);
-    const [usdTable, arsTable] = html.match(/<table\b[\s\S]*?<\/table>/g) ?? [];
+    const usdTable = tableAfter(html, 'Dólares — Productos vs Accesorios');
+    const arsTable = tableAfter(html, 'Pesos — Productos vs Accesorios');
 
+    expect(html).toContain('Ingresos por medio de pago');
+    expect(html).toContain('Facturación del mes');
+    expect(html).toContain('Exportar PDF');
+    expect(html).toContain('Efectivo USD');
+    expect(html).toContain(formatMoney(104500));
+    expect(html).toContain('Sin facturar');
     expect(usdTable).toContain('Margen total');
     expect(usdTable).toContain(formatUsd(60));
     expect(usdTable).toContain(`−${formatUsd(5)}`);
@@ -63,7 +75,8 @@ describe('BalancePage', () => {
     testState.withSales = false;
     try {
       const html = renderToStaticMarkup(<BalancePage />);
-      const [usdTable, arsTable] = html.match(/<table\b[\s\S]*?<\/table>/g) ?? [];
+      const usdTable = tableAfter(html, 'Dólares — Productos vs Accesorios');
+      const arsTable = tableAfter(html, 'Pesos — Productos vs Accesorios');
 
       expect(usdTable).toContain(`−${formatUsd(5)}`);
       expect(usdTable).toContain(formatUsd(-5));

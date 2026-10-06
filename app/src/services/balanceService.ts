@@ -17,6 +17,18 @@ interface BloqueMoneda {
   bonifCosto: number;
 }
 
+export interface ResumenMedioPago {
+  ars: number;
+  usd: number;
+  ventas: number;
+}
+
+interface ResumenFacturacion {
+  ventas: number;
+  ars: number;
+  usd: number;
+}
+
 export interface BalanceMes {
   usd: BloqueMoneda;
   ars: BloqueMoneda;
@@ -31,6 +43,8 @@ export interface BalanceMes {
   /** Resultado en dólares = margen USD (los gastos son en pesos). */
   netaUsd: number;
   ventasCount: number;
+  mediosPago: Record<string, ResumenMedioPago>;
+  facturacion: { facturadas: ResumenFacturacion; sinFacturar: ResumenFacturacion };
 }
 
 function vacio(): BloqueMoneda {
@@ -103,11 +117,45 @@ export function computeBalance(ventas: Venta[], gastos: Gasto[], ym: string, reg
   let envios = 0;
   let descuentosArs = 0;
   const costoRegalos = { usd: 0, ars: 0 };
+  const mediosPago: Record<string, ResumenMedioPago> = {};
+  const facturacion = {
+    facturadas: { ventas: 0, ars: 0, usd: 0 },
+    sinFacturar: { ventas: 0, ars: 0, usd: 0 },
+  };
 
   const ventasMes = ventas.filter((v) => v.estado === 'confirmada' && monthKey(v.creado) === ym);
 
   for (const v of ventasMes) {
     envios += v.envio?.costo ?? 0;
+
+    const estadoFactura = v.facturacion?.estado === 'facturada' ? facturacion.facturadas : facturacion.sinFacturar;
+    estadoFactura.ventas += 1;
+    estadoFactura.ars += v.totalArs;
+    estadoFactura.usd += v.totalUsd;
+
+    const importesPorMedio = new Map<string, { ars: number; usd: number }>();
+    const agregarImporteMedio = (medio: string, moneda: 'ARS' | 'USD', monto: number) => {
+      const actual = importesPorMedio.get(medio) ?? { ars: 0, usd: 0 };
+      actual[moneda.toLowerCase() as 'ars' | 'usd'] += monto;
+      importesPorMedio.set(medio, actual);
+    };
+
+    if (v.pagosDetalle?.length) {
+      for (const pago of v.pagosDetalle) {
+        agregarImporteMedio(pago.moneda === 'USD' ? 'efectivo_usd' : pago.medio, pago.moneda, pago.monto);
+      }
+    } else {
+      if (v.pago?.ars > 0) agregarImporteMedio(v.pago.medioArs || 'sin_especificar', 'ARS', v.pago.ars);
+      if (v.pago?.usd > 0) agregarImporteMedio('efectivo_usd', 'USD', v.pago.usd);
+    }
+
+    for (const [medio, importes] of importesPorMedio) {
+      const resumen = mediosPago[medio] ?? { ars: 0, usd: 0, ventas: 0 };
+      resumen.ars += importes.ars;
+      resumen.usd += importes.usd;
+      resumen.ventas += 1;
+      mediosPago[medio] = resumen;
+    }
 
     // Por moneda: acumular ingresos/costo por unidad y juntar costo de bonificaciones
     const pagado: Record<MonedaBalance, { productos: number; accesorios: number }> = {
@@ -206,5 +254,7 @@ export function computeBalance(ventas: Venta[], gastos: Gasto[], ym: string, reg
     netaArs: ars.margen.total + envios - gastosTotal - costoRegalos.ars,
     netaUsd: usd.margen.total - costoRegalos.usd,
     ventasCount: ventasMes.length,
+    mediosPago,
+    facturacion,
   };
 }

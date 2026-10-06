@@ -6,9 +6,12 @@ import { useGastos } from '@/hooks/useGastos';
 import { useRegalos } from '@/hooks/useRegalos';
 import { computeBalance } from '@/services/balanceService';
 import { Card, CardBody } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { Spinner } from '@/components/ui/Spinner';
 import { formatMoney, formatUsd, monthKey } from '@/lib/utils';
+import { medioPagoLabel } from '@/lib/mediosPago';
+import { Download } from 'lucide-react';
 
 type Fmt = (n: number) => string;
 
@@ -116,14 +119,33 @@ export function BalancePage() {
 
   const updateMonth = (nextMonth: string) => setYm(`${year}-${nextMonth}`);
   const updateYear = (nextYear: string) => setYm(`${nextYear}-${month}`);
+  const exportarPdf = () => {
+    const previousTitle = document.title;
+    const nombreMes = MONTH_OPTIONS.find((option) => option.value === month)?.label ?? month;
+    const limpiarImpresion = () => {
+      document.body.classList.remove('balance-printing');
+      document.title = previousTitle;
+    };
+
+    document.title = `Balance mensual ${nombreMes} ${year}`;
+    document.body.classList.add('balance-printing');
+    window.addEventListener('afterprint', limpiarImpresion, { once: true });
+    window.setTimeout(() => window.print(), 50);
+  };
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div id="balance-report" className="mx-auto max-w-3xl">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold tracking-tight">Balance mensual</h1>
-        <div className="grid w-full gap-3 sm:w-auto sm:grid-cols-2">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Balance mensual</h1>
+          <p className="balance-print-period text-sm text-text-soft">{MONTH_OPTIONS.find((option) => option.value === month)?.label} {year}</p>
+        </div>
+        <div className="balance-no-print grid w-full gap-3 sm:w-auto sm:grid-cols-2">
           <Select label="Mes" value={month} onChange={(e) => updateMonth(e.target.value)} options={MONTH_OPTIONS} />
           <Select label="Año" value={year} onChange={(e) => updateYear(e.target.value)} options={yearOptions} />
+          <Button onClick={exportarPdf} disabled={loading} className="sm:col-span-2 sm:justify-self-end">
+            <Download size={16} aria-hidden="true" /> Exportar PDF
+          </Button>
         </div>
       </div>
 
@@ -132,6 +154,56 @@ export function BalancePage() {
       ) : (
         <div className="flex flex-col gap-5">
           <p className="text-sm text-text-soft">{b.ventasCount} venta(s) en el mes. Se agrupa por la moneda en que se cobró: lo vendido en dólares pero cobrado en pesos se suma a pesos con la cotización de esa venta.</p>
+
+          <div className="grid gap-5 sm:grid-cols-2">
+            <Card>
+              <CardBody>
+                <h2 className="mb-3 text-base font-bold">Ingresos por medio de pago</h2>
+                {Object.keys(b.mediosPago).length === 0 ? (
+                  <p className="text-sm text-text-soft">No hay cobros registrados en este mes.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead><tr className="text-text-soft"><th className="py-1 text-left font-medium">Medio</th><th className="py-1 text-right font-medium">Ventas</th><th className="py-1 text-right font-medium">Pesos</th><th className="py-1 text-right font-medium">USD</th></tr></thead>
+                      <tbody>{Object.entries(b.mediosPago).map(([medio, resumen]) => (
+                        <tr key={medio} className="border-t border-line">
+                          <td className="py-2 font-medium">{medio === 'efectivo_usd' ? 'Efectivo USD' : medioPagoLabel(medio)}</td>
+                          <td className="py-2 text-right">{resumen.ventas}</td>
+                          <td className="py-2 text-right">{formatMoney(resumen.ars)}</td>
+                          <td className="py-2 text-right">{formatUsd(resumen.usd)}</td>
+                        </tr>
+                      ))}</tbody>
+                    </table>
+                  </div>
+                )}
+              </CardBody>
+            </Card>
+
+            <Card>
+              <CardBody>
+                <h2 className="mb-3 text-base font-bold">Facturación del mes</h2>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead><tr className="text-text-soft"><th className="py-1 text-left font-medium">Estado</th><th className="py-1 text-right font-medium">Ventas</th><th className="py-1 text-right font-medium">Pesos</th><th className="py-1 text-right font-medium">USD</th></tr></thead>
+                    <tbody>
+                      {([
+                        ['Facturadas', b.facturacion.facturadas],
+                        ['Sin facturar', b.facturacion.sinFacturar],
+                      ] as const).map(([label, resumen]) => (
+                        <tr key={label} className="border-t border-line">
+                          <td className="py-2 font-medium">{label}</td>
+                          <td className="py-2 text-right">{resumen.ventas}</td>
+                          <td className="py-2 text-right">{formatMoney(resumen.ars)}</td>
+                          <td className="py-2 text-right">{formatUsd(resumen.usd)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="mt-2 text-xs text-text-soft">Importes de productos y accesorios; no incluyen envíos.</p>
+              </CardBody>
+            </Card>
+          </div>
 
           {/* Resultado por moneda */}
           <div className="grid gap-3 sm:grid-cols-2">

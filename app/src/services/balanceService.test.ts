@@ -147,3 +147,37 @@ describe('computeBalance – regalos', () => {
     expect(b.netaArs).toBe(400);
   });
 });
+
+describe('computeBalance – pagos y facturación', () => {
+  it('groups payment amounts by medium and counts invoice status only for confirmed monthly sales', () => {
+    const facturada = venta([item({ precioUnitario: 10000 })], {
+      totalArs: 10000,
+      pago: { usd: 0, ars: 10000, medioArs: 'varios', tipoCambio: 0 },
+      pagosDetalle: [
+        { fecha: ahora as unknown as NonNullable<Venta['pagosDetalle']>[number]['fecha'], monto: 4000, moneda: 'ARS', medio: 'efectivo', registradoPor: 'admin' },
+        { fecha: ahora as unknown as NonNullable<Venta['pagosDetalle']>[number]['fecha'], monto: 6000, moneda: 'ARS', medio: 'transferencia_sole', registradoPor: 'admin' },
+        { fecha: ahora as unknown as NonNullable<Venta['pagosDetalle']>[number]['fecha'], monto: 50, moneda: 'USD', medio: 'efectivo', registradoPor: 'admin' },
+      ],
+      facturacion: { estado: 'facturada', tipo: 'C', nroFacturaC: '0001-1' },
+    });
+    const sinFactura = venta([item({ precioUnitario: 5000 })], {
+      totalArs: 5000,
+      pago: { usd: 0, ars: 5000, medioArs: 'qr', tipoCambio: 0 },
+    });
+    const anulada = venta([item({ precioUnitario: 7000 })], {
+      estado: 'anulada',
+      totalArs: 7000,
+      pago: { usd: 0, ars: 7000, medioArs: 'efectivo', tipoCambio: 0 },
+      facturacion: { estado: 'facturada', tipo: 'C' },
+    });
+
+    const b = computeBalance([facturada, sinFactura, anulada], [], ym);
+
+    expect(b.mediosPago.efectivo).toEqual({ ars: 4000, usd: 0, ventas: 1 });
+    expect(b.mediosPago.transferencia_sole).toEqual({ ars: 6000, usd: 0, ventas: 1 });
+    expect(b.mediosPago.efectivo_usd).toEqual({ ars: 0, usd: 50, ventas: 1 });
+    expect(b.mediosPago.qr).toEqual({ ars: 5000, usd: 0, ventas: 1 });
+    expect(b.facturacion.facturadas).toEqual({ ventas: 1, ars: 10000, usd: 0 });
+    expect(b.facturacion.sinFacturar).toEqual({ ventas: 1, ars: 5000, usd: 0 });
+  });
+});
