@@ -1,12 +1,16 @@
-import { addDoc, collection, doc, increment, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { addDoc, collection, doc, getDocs, increment, limit, orderBy, query, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { run, type Result } from './result';
 import { registrarMovimiento } from './movimientosService';
+import type { Timestamp } from 'firebase/firestore';
+
+export type MonedaImportacion = 'ARS' | 'USD';
 
 export interface LoteItemInput {
   productId: string;
   nombre: string;
   cantidad: number;
+  moneda: MonedaImportacion;
   /** Costo nuevo (en la moneda del producto). Si se indica, actualiza el costo del producto. */
   costo?: number;
 }
@@ -16,6 +20,19 @@ export interface LoteInput {
   fecha: Date;
   nota?: string;
   items: LoteItemInput[];
+}
+
+export interface LoteImportado {
+  id: string;
+  proveedor: string;
+  fecha: Timestamp | Date;
+  items: {
+    productId: string;
+    nombre: string;
+    cantidad: number;
+    costo: number;
+    moneda?: MonedaImportacion;
+  }[];
 }
 
 export const importService = {
@@ -39,6 +56,20 @@ export const importService = {
         creado: serverTimestamp(),
       });
       return ref.id;
+    });
+  },
+
+  getRecentBatches(pageSize = 20): Promise<Result<LoteImportado[]>> {
+    return run(async () => {
+      const snapshot = await getDocs(query(
+        collection(db, 'importBatches'),
+        orderBy('fecha', 'desc'),
+        limit(Math.max(1, Math.min(pageSize, 100))),
+      ));
+      return snapshot.docs.map((item) => ({
+        id: item.id,
+        ...(item.data() as Omit<LoteImportado, 'id'>),
+      }));
     });
   },
 };
